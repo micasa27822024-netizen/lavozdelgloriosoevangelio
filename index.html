@@ -1,0 +1,2374 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Radio en vivo</title>
+
+  <!-- Metadatos que se completan automáticamente desde config.js -->
+  <meta name="description" id="metaDescription" content="">
+  <meta property="og:title" id="ogTitle" content="">
+  <meta property="og:description" id="ogDescription" content="">
+  <meta property="og:image" id="ogImage" content="">
+  <meta property="og:url" id="ogUrl" content="">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" id="themeColorMeta" content="#f59e0b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" id="appleTitle" content="Radio">
+  <link rel="apple-touch-icon" href="assets/icono.png">
+  <link rel="icon" type="image/png" href="assets/icono.png">
+
+  <!-- Iconos -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Google Cast (transmitir a Smart TV) -->
+  <script type="text/javascript" src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+
+  <style>
+    /* ==========================================================================
+       VARIABLES DE MARCA — config.js las reemplaza al cargar
+       ========================================================================== */
+    :root {
+      --primario:        #f59e0b;
+      --primario-oscuro: #d97706;
+      --oro:             #d4af37;
+      --secundario:      #38bdf8;
+      --fondo-modal:     #121824;
+
+      --fondo-movil:      url("assets/fondo-movil.jpg");
+      --fondo-escritorio: url("assets/fondo-escritorio.jpg");
+
+      --texto:       #ffffff;
+      --texto-suave: #9ca3af;
+      --alto:        #22c55e;
+      --alerta:      #ef4444;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body, html {
+      height: 100%;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+      color: var(--texto);
+      background: #000;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button { font-family: inherit; }
+
+    /* ==========================================================================
+       FONDO Y ESTRUCTURA
+       ========================================================================== */
+    .background-container {
+      position: fixed;
+      inset: 0;
+      background-image: var(--fondo-movil);
+      background-repeat: no-repeat;
+      background-position: center center;
+      background-size: cover;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: calc(8px + env(safe-area-inset-top)) 12px calc(8px + env(safe-area-inset-bottom));
+    }
+
+    @media (min-width: 768px) {
+      .background-container { background-image: var(--fondo-escritorio); }
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom,
+        rgba(0,0,0,0.25) 0%,
+        rgba(0,0,0,0) 20%,
+        rgba(0,0,0,0.10) 70%,
+        rgba(0,0,0,0.85) 100%);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .content {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* ==========================================================================
+       BARRA SUPERIOR — se adapta a cualquier cantidad de botones
+       ========================================================================== */
+    .top-bar {
+      width: 100%;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      padding: 6px 2px;
+      flex-shrink: 0;
+    }
+    .top-bar::-webkit-scrollbar { display: none; }
+
+    .top-actions {
+      display: flex;
+      gap: 3px;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto;
+      width: max-content;
+    }
+
+    .btn-top {
+      flex: 0 0 auto;
+      background: rgba(0, 0, 0, 0.6);
+      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      color: var(--texto);
+      height: 30px;
+      padding: 0 5px;
+      border-radius: 15px;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 0.68rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      gap: 2px;
+      white-space: nowrap;
+      transition: transform 0.15s, background 0.15s;
+    }
+    .btn-top:hover { transform: scale(1.03); background: rgba(0, 0, 0, 0.78); }
+    .btn-top:active { transform: scale(0.97); }
+
+    /* ==========================================================================
+       ZONA INFERIOR
+       ========================================================================== */
+    .bottom-section {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    /* --- Versículo diario --- */
+    .verse-card {
+      background: rgba(0, 0, 0, 0.65);
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      border-radius: 12px;
+      padding: 8px 14px;
+      text-align: center;
+      width: 100%;
+    }
+    .verse-text {
+      font-size: 0.95rem;
+      font-style: italic;
+      color: #fdfdfd;
+      line-height: 1.35;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+    }
+    .verse-ref {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--primario);
+      margin-top: 3px;
+      letter-spacing: 0.5px;
+    }
+
+    /* --- Tarjeta "sonando ahora" --- */
+    .song-card {
+      background: rgba(0, 0, 0, 0.82);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(212, 175, 55, 0.6);
+      border-radius: 12px;
+      padding: 10px 14px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      box-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
+    }
+
+    .equalizer {
+      display: flex;
+      align-items: flex-end;
+      gap: 3px;
+      height: 22px;
+      width: 28px;
+      padding-bottom: 2px;
+      flex-shrink: 0;
+    }
+    .eq-bar {
+      width: 4px;
+      background: linear-gradient(to top, var(--oro), #ffe066);
+      border-radius: 2px;
+      box-shadow: 0 0 8px rgba(212, 175, 55, 0.8);
+      animation: eqAnimation 1.2s infinite ease-in-out alternate;
+    }
+    .eq-bar:nth-child(1) { height: 40%; animation-duration: 0.8s; animation-delay: 0.1s; }
+    .eq-bar:nth-child(2) { height: 90%; animation-duration: 1.1s; animation-delay: 0.3s; }
+    .eq-bar:nth-child(3) { height: 60%; animation-duration: 0.7s; animation-delay: 0.2s; }
+    .eq-bar:nth-child(4) { height: 100%; animation-duration: 1.0s; animation-delay: 0.4s; }
+
+    @keyframes eqAnimation {
+      0%   { transform: scaleY(0.3); opacity: 0.6; }
+      100% { transform: scaleY(1.1); opacity: 1; box-shadow: 0 0 14px #ffe066; }
+    }
+
+    .song-info {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--texto);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+      letter-spacing: 0.3px;
+      min-width: 0;
+    }
+
+    /* --- Fila del reproductor --- */
+    .player-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+      padding: 8px 16px;
+      border-radius: 40px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: #e5e7eb;
+      min-width: 90px;
+    }
+
+    .status-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      display: inline-block;
+      background-color: #6b7280;
+      box-shadow: 0 0 6px rgba(107, 114, 128, 0.6);
+      transition: background-color 0.3s, box-shadow 0.3s;
+      flex-shrink: 0;
+    }
+    .status-dot.online {
+      background-color: var(--alto);
+      box-shadow: 0 0 12px var(--alto);
+      animation: blinkPulse 2s infinite ease-in-out;
+    }
+    .status-dot.reconnecting {
+      background-color: var(--primario);
+      box-shadow: 0 0 10px var(--primario);
+      animation: blinkFast 0.8s infinite ease-in-out;
+    }
+    .status-dot.offline {
+      background-color: var(--alerta);
+      box-shadow: 0 0 6px var(--alerta);
+    }
+
+    @keyframes blinkPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: 0.4; transform: scale(0.85); }
+    }
+    @keyframes blinkFast {
+      0%, 100% { opacity: 1; }
+      50%      { opacity: 0.2; }
+    }
+
+    .btn-play-wrapper { position: relative; display: flex; justify-content: center; align-items: center; }
+
+    .btn-play {
+      position: relative;
+      z-index: 2;
+      width: 62px;
+      height: 62px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primario), var(--primario-oscuro));
+      border: 3px solid rgba(255, 255, 255, 0.95);
+      box-shadow: 0 0 25px rgba(245, 158, 11, 0.8), inset 0 0 15px rgba(255, 255, 255, 0.4);
+      color: #fff;
+      font-size: 1.5rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s;
+      padding-left: 4px;
+    }
+    .btn-play:hover {
+      transform: scale(1.12);
+      box-shadow: 0 0 35px rgba(245, 158, 11, 1), inset 0 0 20px rgba(255, 255, 255, 0.6);
+    }
+    .btn-play:active { transform: scale(0.96); }
+    .btn-play.playing {
+      padding-left: 0;
+      background: linear-gradient(135deg, #ef4444, #b91c1c);
+      border-color: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 0 30px rgba(239, 68, 68, 0.9), inset 0 0 15px rgba(255, 255, 255, 0.4);
+      animation: playPulseGlow 2s infinite ease-in-out;
+    }
+
+    @keyframes playPulseGlow {
+      0%, 100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.8), 0 0 0 0 rgba(239, 68, 68, 0.4); }
+      50%      { box-shadow: 0 0 40px rgba(239, 68, 68, 1), 0 0 0 16px rgba(239, 68, 68, 0); }
+    }
+
+    .volume-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 90px;
+      justify-content: flex-end;
+    }
+    .volume-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 60px;
+      height: 5px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.4);
+      outline: none;
+      cursor: pointer;
+    }
+    .volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+      box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+    }
+    .volume-slider::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border: none;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    /* --- Pie de redes --- */
+    .footer-section {
+      width: 100%;
+      text-align: center;
+      background: rgba(0, 0, 0, 0.85);
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+      padding: 8px 12px 10px 12px;
+      border-radius: 16px 16px 0 0;
+      border-top: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    .footer-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #e5e7eb;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .social-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .social-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+      font-size: 1.05rem;
+      text-decoration: none;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+      transition: transform 0.2s;
+      border: none;
+      cursor: pointer;
+    }
+    .social-btn:hover { transform: scale(1.12); }
+    .social-btn:active { transform: scale(0.95); }
+
+    /* ==========================================================================
+       MODALES
+       ========================================================================== */
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: blur(8px);
+      z-index: 10;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .modal-content {
+      background: var(--fondo-modal);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 16px;
+      padding: 20px;
+      max-width: 480px;
+      width: 100%;
+      color: #fff;
+      max-height: 88vh;
+      overflow-y: auto;
+      animation: modalIn 0.18s ease-out;
+    }
+
+    @keyframes modalIn {
+      from { opacity: 0; transform: translateY(12px) scale(0.98); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 10px;
+      margin-bottom: 15px;
+      gap: 10px;
+    }
+    .modal-header h3 { font-size: 1.1rem; color: var(--primario); }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 4px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .schedule-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+      gap: 10px;
+    }
+    .schedule-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .schedule-title { font-size: 0.9rem; font-weight: 600; color: #fff; }
+    .schedule-days { font-size: 0.75rem; color: var(--texto-suave); }
+    .schedule-time { font-size: 0.85rem; font-weight: 700; color: var(--primario); white-space: nowrap; }
+
+    .prog-tabs {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      scrollbar-width: none;
+    }
+    .prog-tabs::-webkit-scrollbar { display: none; }
+
+    .prog-tab {
+      flex: 0 0 auto;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #e5e7eb;
+      padding: 6px 13px;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .prog-tab:hover { background: rgba(255, 255, 255, 0.12); }
+    .prog-tab.activo {
+      background: var(--primario);
+      border-color: var(--primario);
+      color: #1a1205;
+    }
+
+    /* En celulares las pestañas se reparten en dos filas parejas
+       para que todos los días queden a la vista. */
+    @media (max-width: 520px) {
+      .prog-tabs {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 6px;
+        overflow: visible;
+      }
+      .prog-tab { flex: 0 1 auto; min-width: 88px; text-align: center; }
+    }
+
+    .prog-slot {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 11px 0;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+    }
+    .prog-slot:last-child { border-bottom: none; }
+
+    .prog-hora {
+      flex: 0 0 54px;
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: var(--primario);
+      letter-spacing: 0.3px;
+      padding-top: 2px;
+    }
+
+    .prog-programa {
+      font-size: 0.88rem;
+      line-height: 1.35;
+      color: #ffffff;
+    }
+
+    .reuniones-header-box {
+      text-align: center;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .subtitulo-iglesia {
+      font-size: 0.7rem;
+      letter-spacing: 1.5px;
+      color: var(--secundario);
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .reuniones-header-box h2 { margin: 2px 0; color: #fff; font-size: 1.4rem; font-style: italic; }
+
+    .reunion-row {
+      display: flex;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 10px 14px;
+      margin-bottom: 10px;
+      gap: 12px;
+    }
+    .reunion-icon-box {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid var(--secundario);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--secundario);
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+    .reunion-details { display: flex; flex-direction: column; min-width: 0; }
+    .reunion-time-tag { display: flex; gap: 6px; font-size: 0.8rem; font-weight: 800; }
+    .reunion-time-tag .day { color: #fff; }
+    .reunion-time-tag .hour { color: var(--secundario); }
+    .reunion-name { color: #e2e8f0; font-size: 0.95rem; font-weight: 600; }
+
+    .reunion-row.destacado { border-color: rgba(245, 158, 11, 0.4); }
+    .reunion-row.destacado .reunion-icon-box { border-color: var(--primario); color: var(--primario); }
+    .reunion-row.destacado .hour { color: var(--primario); }
+
+    .video-wrapper {
+      display: none;
+      margin-bottom: 15px;
+      background: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+    .video-title-bar {
+      background: #1f2937;
+      padding: 8px 12px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--primario);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .video-container { position: relative; padding-bottom: 56.25%; height: 0; }
+    .video-container iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+
+    .btn-play-video {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: #fff;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: transform 0.2s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .btn-play-video:hover { transform: scale(1.05); }
+
+    /* --- Ubicación --- */
+    .mapa-wrapper {
+      position: relative;
+      height: 250px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      background: #0b1220;
+    }
+    .mapa-wrapper iframe { display: block; width: 100%; height: 100%; border: 0; }
+
+    .ubicacion-datos { margin-top: 12px; text-align: center; }
+    .ubicacion-nombre { font-size: 0.98rem; font-weight: 800; color: var(--primario); line-height: 1.3; }
+    .ubicacion-direccion { margin-top: 2px; font-size: 0.88rem; line-height: 1.4; color: #e5e7eb; }
+    .ubicacion-enlace {
+      display: inline-block;
+      margin-top: 6px;
+      font-size: 0.76rem;
+      color: var(--texto-suave);
+      text-decoration: underline;
+    }
+
+    .ubicacion-acciones {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .btn-ubicacion {
+      min-height: 42px;
+      padding: 8px 12px;
+      border-radius: 22px;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      transition: transform 0.15s, filter 0.15s;
+      text-align: center;
+    }
+    .btn-ubicacion:hover { transform: translateY(-1px); filter: brightness(1.05); }
+    .btn-ubicacion.primario {
+      background: linear-gradient(135deg, var(--primario), var(--primario-oscuro));
+      color: #1a1205;
+    }
+    .btn-ubicacion.secundario {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      color: #ffffff;
+    }
+
+    .ubicacion-nota {
+      margin-top: 10px;
+      min-height: 16px;
+      text-align: center;
+      font-size: 0.74rem;
+      line-height: 1.35;
+      color: var(--texto-suave);
+    }
+
+    @media (max-width: 430px) {
+      .ubicacion-acciones { grid-template-columns: 1fr; }
+      .btn-ubicacion { min-height: 44px; }
+    }
+
+    .schedule-item.live-item {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid var(--alerta);
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 12px;
+    }
+    .badge-live {
+      background: var(--alerta);
+      color: #fff;
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      animation: blinkFast 1s infinite ease-in-out;
+      display: inline-block;
+      margin-bottom: 4px;
+      width: max-content;
+    }
+
+    .section-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--texto-suave);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .empty-message {
+      text-align: center;
+      color: var(--texto-suave);
+      padding: 14px 10px;
+      font-size: 0.8rem;
+      line-height: 1.5;
+    }
+    .empty-message a { color: #d1d5db; text-decoration: underline; }
+
+    .modal-link {
+      display: block;
+      margin-top: 15px;
+      text-align: center;
+      color: var(--texto-suave);
+      font-size: 0.78rem;
+      text-decoration: underline;
+    }
+
+    .oculto { display: none !important; }
+
+    /* La fila original mide 388 px de ancho. En pantallas de 411 px o menos
+       se compacta apenas (0,04 rem) para que los 6 botones entren completos.
+       En equipos donde la fila ya entraba, no se modifica nada. */
+    @media (max-width: 411px) {
+      .btn-top { padding: 0 3px; font-size: 0.64rem; }
+    }
+
+    @media (max-width: 359px) {
+      .top-actions { gap: 2px; }
+      .btn-top { padding: 0 2px; font-size: 0.60rem; gap: 1px; }
+    }
+
+    /* Celulares muy angostos: los 6 botones sociales entran en una sola fila */
+    @media (max-width: 360px) {
+      .social-buttons { gap: 7px; }
+      .social-btn { width: 34px; height: 34px; font-size: 0.95rem; }
+      .status-badge { min-width: 78px; font-size: 0.68rem; }
+      .volume-container { min-width: 78px; }
+      .volume-slider { width: 48px; }
+    }
+
+    /* Pantallas grandes: se agranda un poco el conjunto para que no quede chico */
+    @media (min-width: 1024px) and (min-height: 700px) {
+      .bottom-section { max-width: 560px; gap: 10px; }
+      .verse-text { font-size: 1.05rem; }
+      .song-info { font-size: 1rem; }
+      .btn-play { width: 70px; height: 70px; font-size: 1.7rem; }
+      .player-row { padding: 10px 20px; }
+      .btn-top { height: 34px; font-size: 0.78rem; padding: 0 11px; border-radius: 17px; }
+    }
+
+    /* En pantallas muy bajas (celular acostado) se prioriza el reproductor */
+    @media (max-height: 520px) {
+      .verse-card { display: none; }
+      .bottom-section { gap: 5px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="background-container">
+    <div class="overlay"></div>
+
+    <div class="content">
+
+      <!-- Botones superiores: se generan desde config.js -->
+      <div class="top-bar" id="topBar">
+        <div class="top-actions" id="topActions"></div>
+      </div>
+
+      <div class="bottom-section">
+
+        <!-- Versículo del día -->
+        <div class="verse-card" id="verseCard">
+          <div class="verse-text" id="verseText">Cargando versículo...</div>
+          <div class="verse-ref" id="verseRef"></div>
+        </div>
+
+        <!-- Sonando ahora -->
+        <div class="song-card">
+          <div class="equalizer" aria-hidden="true">
+            <div class="eq-bar"></div>
+            <div class="eq-bar"></div>
+            <div class="eq-bar"></div>
+            <div class="eq-bar"></div>
+          </div>
+          <div class="song-info" id="songInfoText">Sintonizando transmisión en vivo...</div>
+        </div>
+
+        <!-- Reproductor -->
+        <div class="player-row">
+          <div class="status-badge">
+            <span class="status-dot offline" id="statusDot"></span>
+            <span id="statusText">EN PAUSA</span>
+          </div>
+
+          <div class="btn-play-wrapper">
+            <button class="btn-play" id="playBtn" type="button" aria-label="Reproducir">
+              <i class="fa-solid fa-play" id="playIcon"></i>
+            </button>
+          </div>
+
+          <div class="volume-container">
+            <i class="fa-solid fa-volume-high" id="volIcon" role="button" tabindex="0" aria-label="Silenciar" style="cursor:pointer; font-size: 0.9rem;"></i>
+            <input type="range" class="volume-slider" id="volSlider" min="0" max="1" step="0.05" value="1" aria-label="Volumen">
+          </div>
+        </div>
+
+        <!-- Redes -->
+        <div class="footer-section" id="footerSection">
+          <div class="footer-title" id="footerTitle">Contacto &amp; Redes Sociales</div>
+          <div class="social-buttons" id="socialButtons"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Audio principal -->
+  <audio id="radioStream" crossorigin="anonymous" preload="auto"></audio>
+  <audio id="silentAudio" loop src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA="></audio>
+
+  <!-- ============================ MODALES ============================ -->
+
+  <div class="modal" id="modalProgramacion" role="dialog" aria-modal="true" aria-labelledby="tituloProgramacion">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="tituloProgramacion"><i class="fa-solid fa-radio"></i> Programación de Radio</h3>
+        <button class="modal-close" type="button" data-cerrar="modalProgramacion" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div id="programacionList"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="modalReuniones" role="dialog" aria-modal="true" aria-labelledby="tituloReuniones">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="tituloReuniones"><i class="fa-solid fa-church" style="color: var(--secundario);"></i> Nuestras Reuniones</h3>
+        <button class="modal-close" type="button" data-cerrar="modalReuniones" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="reuniones-header-box">
+        <span class="subtitulo-iglesia" id="reunionesSubtitulo"></span>
+        <h2 id="reunionesNombre"></h2>
+      </div>
+
+      <div id="reunionesList"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="modalUbicacion" role="dialog" aria-modal="true" aria-labelledby="tituloUbicacion">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="tituloUbicacion"><i class="fa-solid fa-location-dot" style="color: var(--primario);"></i> Nuestra Ubicación</h3>
+        <button class="modal-close" type="button" data-cerrar="modalUbicacion" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="mapa-wrapper">
+        <iframe id="mapaIframe" title="Mapa de la iglesia" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+      </div>
+
+      <div class="ubicacion-datos">
+        <p class="ubicacion-nombre" id="ubicacionNombre"></p>
+        <p class="ubicacion-direccion" id="ubicacionDireccion"></p>
+        <a class="ubicacion-enlace" id="enlaceMapa" href="#" target="_blank" rel="noopener">
+          <i class="fa-solid fa-map-location-dot"></i> Ver ficha en Google Maps
+        </a>
+      </div>
+
+      <div class="ubicacion-acciones">
+        <a class="btn-ubicacion primario" id="btnComoLlegar" href="#" target="_blank" rel="noopener">
+          <i class="fa-solid fa-diamond-turn-right"></i> <span id="btnComoLlegarTexto">Cómo llegar</span>
+        </a>
+        <button class="btn-ubicacion secundario" id="btnMiUbicacion" type="button">
+          <i class="fa-solid fa-location-crosshairs"></i> <span id="btnMiUbicacionTexto">Usar mi ubicación</span>
+        </button>
+      </div>
+
+      <p class="ubicacion-nota" id="ubicacionEstado" role="status"></p>
+    </div>
+  </div>
+
+  <div class="modal" id="modalPredicas" role="dialog" aria-modal="true" aria-labelledby="tituloPredicas">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="tituloPredicas"><i class="fa-brands fa-youtube" style="color:#ff4d4d;"></i> Prédicas &amp; Mensajes</h3>
+        <button class="modal-close" type="button" data-cerrar="modalPredicas" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="video-wrapper" id="videoWrapper">
+        <div class="video-title-bar">
+          <span id="videoTitleDisplay">Reproduciendo...</span>
+          <button class="modal-close" type="button" id="cerrarVideo" aria-label="Cerrar video" style="font-size:1rem;"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="video-container">
+          <iframe id="ytIframePlayer" title="Reproductor de YouTube" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+        </div>
+      </div>
+
+      <div id="liveStreamContainer"></div>
+
+      <div class="section-label">Últimos videos:</div>
+      <div id="latestVideosContainer">
+        <div class="empty-message"><i class="fa-solid fa-spinner fa-spin"></i> Cargando transmisiones...</div>
+      </div>
+
+      <a class="modal-link" id="canalYoutubeLink" href="#" target="_blank" rel="noopener">
+        <i class="fa-brands fa-youtube"></i> Abrir canal completo en YouTube
+      </a>
+    </div>
+  </div>
+
+  <!-- ============================ DATOS ============================ -->
+  <script src="versiculos.js"></script>
+  <script src="config.js"></script>
+
+  <!-- ============================ APLICACIÓN ============================ -->
+  <script>
+  (function () {
+    'use strict';
+
+    /* ======================================================================
+       UTILIDADES
+       ====================================================================== */
+    const $ = (id) => document.getElementById(id);
+
+    const DEFAULTS = {
+      sitio: {
+        nombre: 'Radio en vivo',
+        nombreCorto: 'Radio',
+        eslogan: '',
+        descripcion: '',
+        iglesia: '',
+        ciudad: '',
+        idioma: 'es',
+        urlPublica: '',
+        colorBarra: '#f59e0b'
+      },
+      marca: {
+        primario: '#f59e0b',
+        primarioOscuro: '#d97706',
+        oro: '#d4af37',
+        secundario: '#38bdf8',
+        fondoModal: '#121824'
+      },
+      imagenes: {
+        fondoMovil: 'assets/fondo-movil.jpg',
+        fondoEscritorio: 'assets/fondo-escritorio.jpg',
+        icono: 'assets/icono.png'
+      },
+      transmision: {
+        url: '',
+        tipo: 'audio/mp3',
+        textoEspera: 'Sintonizando transmisión en vivo...',
+        metadatos: { proveedor: '', streamId: '' }
+      },
+      modulos: { versiculo: true, redesSociales: true },
+      barraSuperior: [],
+      programacion: [],
+      reuniones: { titulo: 'Nuestras Reuniones', subtitulo: '', nombre: '', items: [] },
+      predicas: {
+        titulo: 'Prédicas & Mensajes',
+        apiKey: '',
+        canalHandle: '',
+        canalId: '',
+        cantidadUltimas: 4,
+        intervaloRefresco: 60000,
+        textoBotonVivo: 'Ver Vivo',
+        textoBotonArchivo: 'Ver aquí'
+      },
+      ubicacion: {
+        titulo: 'Nuestra Ubicación',
+        direccion: '', localidad: '', provincia: '', codigoPostal: '',
+        linkMapa: '', embedUrl: '',
+        textoComoLlegar: 'Cómo llegar', textoMiUbicacion: 'Usar mi ubicación'
+      },
+      redes: [],
+      textos: {
+        enPausa: 'EN PAUSA',
+        enLinea: 'EN LÍNEA',
+        conectando: 'CONECTANDO',
+        reconectando: 'RECONECTANDO',
+        buffering: 'BUFFERING',
+        sinRed: 'SIN RED',
+        pieRedes: 'Contacto & Redes Sociales'
+      },
+      temporizador: { opciones: [15, 30, 60] },
+      versiculo: { lista: [] }
+    };
+
+    function esObjetoPlano(valor) {
+      return valor !== null && typeof valor === 'object' && !Array.isArray(valor);
+    }
+
+    function combinar(base, extra) {
+      if (Array.isArray(extra)) return extra.slice();
+      const salida = esObjetoPlano(base) ? Object.assign({}, base) : {};
+      if (!esObjetoPlano(extra)) return salida;
+
+      Object.keys(extra).forEach((clave) => {
+        const valor = extra[clave];
+        if (esObjetoPlano(valor) && esObjetoPlano(salida[clave])) {
+          salida[clave] = combinar(salida[clave], valor);
+        } else if (valor !== undefined) {
+          salida[clave] = valor;
+        }
+      });
+      return salida;
+    }
+
+    const C = combinar(DEFAULTS, window.CONFIG || {});
+
+    const COLORES_RED = {
+      facebook: '#1877f2',
+      whatsapp: '#25d366',
+      youtube: '#ff0000',
+      compartir: '#8b5cf6',
+      chromecast: '#3b82f6'
+    };
+
+    function icono(clases) {
+      const i = document.createElement('i');
+      i.className = clases || 'fa-solid fa-circle';
+      i.setAttribute('aria-hidden', 'true');
+      return i;
+    }
+
+    function ponerMeta(selector, valor) {
+      const el = document.querySelector(selector);
+      if (el && valor) el.setAttribute('content', valor);
+    }
+
+    /* ======================================================================
+       1. IDENTIDAD, COLORES E IMÁGENES
+       ====================================================================== */
+    function aplicarIdentidad() {
+      const s = C.sitio;
+
+      document.title = s.nombre;
+      document.documentElement.lang = s.idioma || 'es';
+
+      ponerMeta('#metaDescription', s.descripcion);
+      ponerMeta('#ogTitle', s.nombre);
+      ponerMeta('#ogDescription', s.descripcion);
+      ponerMeta('#ogImage', C.imagenes.fondoMovil);
+      ponerMeta('#ogUrl', s.urlPublica || window.location.href);
+      ponerMeta('#themeColorMeta', s.colorBarra);
+      ponerMeta('#appleTitle', s.nombreCorto);
+
+      const metaTema = $('themeColorMeta');
+      if (metaTema) metaTema.setAttribute('content', s.colorBarra || C.marca.primario);
+
+      document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach((link) => {
+        link.setAttribute('href', C.imagenes.icono);
+      });
+
+      const raiz = document.documentElement.style;
+      raiz.setProperty('--primario', C.marca.primario);
+      raiz.setProperty('--primario-oscuro', C.marca.primarioOscuro);
+      raiz.setProperty('--oro', C.marca.oro);
+      raiz.setProperty('--secundario', C.marca.secundario);
+      raiz.setProperty('--fondo-modal', C.marca.fondoModal);
+      raiz.setProperty('--fondo-movil', 'url("' + C.imagenes.fondoMovil + '")');
+      raiz.setProperty('--fondo-escritorio', 'url("' + C.imagenes.fondoEscritorio + '")');
+
+      if (s.nombreCorto) $('appleTitle') && $('appleTitle').setAttribute('content', s.nombreCorto);
+
+      $('footerTitle').textContent = C.textos.pieRedes;
+      $('statusText').textContent = C.textos.enPausa;
+      $('songInfoText').textContent = C.transmision.textoEspera;
+    }
+
+    /* ======================================================================
+       2. BARRA SUPERIOR
+       ====================================================================== */
+    const MODULOS_CON_DATOS = {
+      programacion: () => {
+        const p = C.programacion;
+        if (Array.isArray(p)) return p.length > 0;
+        return !!(p && Array.isArray(p.grilla) && p.grilla.length > 0);
+      },
+      reuniones: () => C.reuniones && Array.isArray(C.reuniones.items) && C.reuniones.items.length > 0,
+      predicas: () => !!(C.predicas && (C.predicas.canalHandle || C.predicas.canalId)),
+      ubicacion: () => !!(C.ubicacion && (C.ubicacion.embedUrl || C.ubicacion.direccion))
+    };
+
+    function renderBarraSuperior() {
+      const contenedor = $('topActions');
+      const botones = (C.barraSuperior || []).filter((b) => {
+        if (!b || !b.id) return false;
+        if (b.activo === false) return false;
+        const verificador = MODULOS_CON_DATOS[b.id];
+        return verificador ? verificador() : true;
+      });
+
+      if (!botones.length) {
+        $('topBar').classList.add('oculto');
+        return;
+      }
+
+      botones.forEach((b) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-top';
+        btn.title = b.titulo || b.etiqueta || '';
+        btn.setAttribute('aria-label', b.titulo || b.etiqueta || b.id);
+
+        const i = icono(b.icono);
+        if (b.color) i.style.color = b.color;
+        btn.appendChild(i);
+
+        const span = document.createElement('span');
+        span.textContent = b.etiqueta || '';
+        if (b.id === 'temporizador') {
+          span.id = 'timerLabel';
+          span.textContent = b.etiqueta || 'Off';
+        }
+        btn.appendChild(span);
+
+        btn.addEventListener('click', () => ejecutarAccion(b.id));
+        contenedor.appendChild(btn);
+      });
+    }
+
+    function ejecutarAccion(id) {
+      switch (id) {
+        case 'temporizador': cicloTemporizador(); break;
+        case 'programacion': abrirModal('modalProgramacion'); break;
+        case 'reuniones': abrirModal('modalReuniones'); break;
+        case 'predicas': abrirModal('modalPredicas'); break;
+        case 'ubicacion': pausarAudio(); abrirModal('modalUbicacion'); break;
+        case 'instalarApp': instalarPWA(); break;
+      }
+    }
+
+    /* ======================================================================
+       3. PROGRAMACIÓN
+       ====================================================================== */
+    function normalizarDia(valor) {
+      return String(valor || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+    }
+
+    function esGrillaProgramacion(p) {
+      return !!p && !Array.isArray(p) && Array.isArray(p.dias) && Array.isArray(p.grilla);
+    }
+
+    function renderProgramacion() {
+      const lista = $('programacionList');
+      lista.innerHTML = '';
+
+      if (esGrillaProgramacion(C.programacion)) {
+        renderGrillaProgramacion(C.programacion, lista);
+        return;
+      }
+
+      const programas = Array.isArray(C.programacion) ? C.programacion : [];
+
+      if (!programas.length) {
+        const vacio = document.createElement('div');
+        vacio.className = 'empty-message';
+        vacio.textContent = 'Todavía no hay programas cargados.';
+        lista.appendChild(vacio);
+        return;
+      }
+
+      programas.forEach((p) => {
+        const fila = document.createElement('div');
+        fila.className = 'schedule-item';
+
+        const info = document.createElement('div');
+        info.className = 'schedule-info';
+
+        const titulo = document.createElement('span');
+        titulo.className = 'schedule-title';
+        titulo.textContent = p.titulo || '';
+        info.appendChild(titulo);
+
+        if (p.dias) {
+          const dias = document.createElement('span');
+          dias.className = 'schedule-days';
+          dias.textContent = p.dias;
+          info.appendChild(dias);
+        }
+
+        const hora = document.createElement('span');
+        hora.className = 'schedule-time';
+        hora.textContent = p.horario || '';
+
+        fila.appendChild(info);
+        fila.appendChild(hora);
+        lista.appendChild(fila);
+      });
+    }
+
+    function renderGrillaProgramacion(programacion, contenedor) {
+      const dias = (programacion.dias || []).filter(Boolean);
+      const items = (programacion.grilla || []).filter((i) => i && i.dia && i.hora);
+
+      const pestanas = document.createElement('div');
+      pestanas.className = 'prog-tabs';
+      pestanas.setAttribute('role', 'tablist');
+
+      const turnos = document.createElement('div');
+      turnos.className = 'prog-slots';
+
+      // Abre en el día actual; si ese día no está en la lista, abre en el primero
+      const nombresDias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+      const hoy = nombresDias[new Date().getDay()];
+      const activo = dias.find((d) => normalizarDia(d) === normalizarDia(hoy)) || dias[0];
+
+      function pintarDia(dia) {
+        turnos.innerHTML = '';
+
+        Array.prototype.forEach.call(pestanas.children, (boton) => {
+          const elegido = normalizarDia(boton.dataset.dia) === normalizarDia(dia);
+          boton.classList.toggle('activo', elegido);
+          boton.setAttribute('aria-selected', elegido ? 'true' : 'false');
+        });
+
+        const delDia = items
+          .filter((i) => normalizarDia(i.dia) === normalizarDia(dia))
+          .sort((a, b) => String(a.hora).localeCompare(String(b.hora)));
+
+        if (!delDia.length) {
+          const vacio = document.createElement('div');
+          vacio.className = 'empty-message';
+          vacio.textContent = 'Sin programación para este día.';
+          turnos.appendChild(vacio);
+          return;
+        }
+
+        delDia.forEach((item) => {
+          const fila = document.createElement('div');
+          fila.className = 'prog-slot';
+
+          const hora = document.createElement('span');
+          hora.className = 'prog-hora';
+          hora.textContent = item.hora;
+
+          const titulo = document.createElement('span');
+          titulo.className = 'prog-programa';
+          titulo.textContent = item.titulo || '';
+
+          fila.appendChild(hora);
+          fila.appendChild(titulo);
+          turnos.appendChild(fila);
+        });
+      }
+
+      dias.forEach((dia) => {
+        const boton = document.createElement('button');
+        boton.type = 'button';
+        boton.className = 'prog-tab';
+        boton.dataset.dia = dia;
+        boton.setAttribute('role', 'tab');
+        boton.textContent = dia;
+        boton.addEventListener('click', () => pintarDia(dia));
+        pestanas.appendChild(boton);
+      });
+
+      contenedor.appendChild(pestanas);
+      contenedor.appendChild(turnos);
+
+      if (activo) pintarDia(activo);
+    }
+
+    /* ======================================================================
+       4. REUNIONES
+       ====================================================================== */
+    function renderReuniones() {
+      const r = C.reuniones;
+      $('reunionesSubtitulo').textContent = r.subtitulo || '';
+      $('reunionesNombre').textContent = r.nombre || '';
+
+      const lista = $('reunionesList');
+      lista.innerHTML = '';
+
+      (r.items || []).forEach((item) => {
+        const fila = document.createElement('div');
+        fila.className = 'reunion-row' + (item.destacado ? ' destacado' : '');
+
+        const cajaIcono = document.createElement('div');
+        cajaIcono.className = 'reunion-icon-box';
+        cajaIcono.appendChild(icono(item.icono || 'fa-solid fa-church'));
+
+        const detalles = document.createElement('div');
+        detalles.className = 'reunion-details';
+
+        const etiquetaHora = document.createElement('div');
+        etiquetaHora.className = 'reunion-time-tag';
+
+        const dia = document.createElement('span');
+        dia.className = 'day';
+        dia.textContent = item.dia || '';
+
+        const hora = document.createElement('span');
+        hora.className = 'hour';
+        hora.textContent = item.hora || '';
+
+        etiquetaHora.appendChild(dia);
+        etiquetaHora.appendChild(hora);
+
+        const nombre = document.createElement('span');
+        nombre.className = 'reunion-name';
+        nombre.textContent = item.nombre || '';
+
+        detalles.appendChild(etiquetaHora);
+        detalles.appendChild(nombre);
+
+        fila.appendChild(cajaIcono);
+        fila.appendChild(detalles);
+        lista.appendChild(fila);
+      });
+    }
+
+    /* ======================================================================
+       5. REDES Y ACCIONES
+       ====================================================================== */
+    function renderRedes() {
+      const contenedor = $('socialButtons');
+
+      if (!C.modulos.redesSociales || !C.redes.length) {
+        $('footerSection').classList.add('oculto');
+        return;
+      }
+
+      C.redes.forEach((red) => {
+        const tipo = red.tipo || 'otro';
+        const esAccion = tipo === 'compartir' || tipo === 'chromecast';
+        const el = document.createElement(esAccion ? 'button' : 'a');
+
+        el.className = 'social-btn' + (tipo === 'chromecast' ? ' cast-btn' : '');
+        el.title = red.etiqueta || '';
+        el.setAttribute('aria-label', red.etiqueta || tipo);
+        el.style.backgroundColor = red.color || COLORES_RED[tipo] || C.marca.primario;
+
+        if (esAccion) {
+          el.type = 'button';
+        } else {
+          el.href = red.url || '#';
+          el.target = '_blank';
+          el.rel = 'noopener';
+        }
+
+        el.appendChild(icono(red.icono || 'fa-solid fa-link'));
+
+        if (tipo === 'compartir') el.addEventListener('click', compartirSitio);
+        if (tipo === 'chromecast') el.addEventListener('click', transmitirATV);
+
+        contenedor.appendChild(el);
+      });
+    }
+
+    /* ======================================================================
+       6. VERSÍCULO DEL DÍA
+       ====================================================================== */
+    function versiculoDelDia() {
+      const lista = C.versiculo.lista || [];
+      if (!lista.length) return null;
+
+      const ahora = new Date();
+      const inicioAnio = new Date(ahora.getFullYear(), 0, 0);
+      const diaDelAnio = Math.floor((ahora - inicioAnio) / 86400000);
+
+      return lista[diaDelAnio % lista.length];
+    }
+
+    function renderVersiculo() {
+      const tarjeta = $('verseCard');
+      const lista = C.versiculo.lista || [];
+
+      if (!C.modulos.versiculo || !lista.length) {
+        tarjeta.classList.add('oculto');
+        return;
+      }
+
+      const v = versiculoDelDia();
+      if (!v) { tarjeta.classList.add('oculto'); return; }
+
+      $('verseText').textContent = '“' + v.text + '”';
+      $('verseRef').textContent = v.ref || '';
+    }
+
+    function programarCambioDeVersiculo() {
+      const ahora = new Date();
+      const medianoche = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() + 1, 0, 0, 0);
+
+      setTimeout(() => {
+        renderVersiculo();
+        programarCambioDeVersiculo();
+      }, medianoche.getTime() - ahora.getTime());
+    }
+
+    /* ======================================================================
+       7. MODALES
+       ====================================================================== */
+    const modales = ['modalProgramacion', 'modalReuniones', 'modalUbicacion', 'modalPredicas'];
+
+    function abrirModal(id) {
+      const modal = $(id);
+      if (!modal) return;
+
+      modal.style.display = 'flex';
+
+      if (id === 'modalPredicas') iniciarAutoRefrescoYouTube();
+      if (id === 'modalUbicacion') cargarMapa();
+    }
+
+    function cerrarModal(id) {
+      const modal = $(id);
+      if (!modal) return;
+
+      modal.style.display = 'none';
+
+      if (id === 'modalPredicas') {
+        detenerAutoRefrescoYouTube();
+        cerrarVideo();
+      }
+      if (id === 'modalUbicacion') descargarMapa();
+    }
+
+    function cerrarTodosLosModales() {
+      modales.forEach((id) => {
+        const modal = $(id);
+        if (modal && modal.style.display === 'flex') cerrarModal(id);
+      });
+    }
+
+    modales.forEach((id) => {
+      const modal = $(id);
+      if (!modal) return;
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) cerrarModal(id);
+      });
+    });
+
+    document.querySelectorAll('[data-cerrar]').forEach((btn) => {
+      btn.addEventListener('click', () => cerrarModal(btn.getAttribute('data-cerrar')));
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') cerrarTodosLosModales();
+    });
+
+    /* ======================================================================
+       8. UBICACIÓN Y MAPA
+       ====================================================================== */
+    function direccionCompleta() {
+      const u = C.ubicacion;
+      const partes = [u.direccion, u.localidad, u.provincia].filter(Boolean);
+      let texto = partes.join(', ');
+      if (u.codigoPostal) texto += ' (CP ' + u.codigoPostal + ')';
+      return texto;
+    }
+
+    function urlComoLlegar(origen) {
+      const destino = encodeURIComponent(direccionCompleta() + ', Argentina');
+      let url = 'https://www.google.com/maps/dir/?api=1&destination=' + destino;
+      if (origen) url += '&origin=' + encodeURIComponent(origen) + '&travelmode=driving';
+      return url;
+    }
+
+    function cargarMapa() {
+      const iframe = $('mapaIframe');
+      if (!iframe || !C.ubicacion.embedUrl) return;
+      if (!iframe.getAttribute('src')) iframe.src = C.ubicacion.embedUrl;
+    }
+
+    function descargarMapa() {
+      const iframe = $('mapaIframe');
+      if (iframe) iframe.removeAttribute('src');
+      const estado = $('ubicacionEstado');
+      if (estado) estado.textContent = '';
+    }
+
+    function renderUbicacion() {
+      const u = C.ubicacion;
+
+      $('ubicacionNombre').textContent = C.reuniones.nombre || C.sitio.iglesia || '';
+      $('ubicacionDireccion').textContent = direccionCompleta();
+
+      const comoLlegar = $('btnComoLlegar');
+      comoLlegar.href = urlComoLlegar();
+      comoLlegar.target = '_blank';
+      comoLlegar.rel = 'noopener';
+
+      const enlace = $('enlaceMapa');
+      enlace.href = u.linkMapa || comoLlegar.href;
+
+      $('btnComoLlegarTexto').textContent = u.textoComoLlegar || 'Cómo llegar';
+      $('btnMiUbicacionTexto').textContent = u.textoMiUbicacion || 'Usar mi ubicación';
+    }
+
+    function usarMiUbicacion() {
+      const estado = $('ubicacionEstado');
+
+      if (!navigator.geolocation) {
+        estado.textContent = 'Tu navegador no permite obtener la ubicación. Usá "Cómo llegar" y escribí tu dirección.';
+        return;
+      }
+
+      estado.textContent = 'Buscando tu ubicación…';
+
+      navigator.geolocation.getCurrentPosition(
+        (posicion) => {
+          const origen = posicion.coords.latitude + ',' + posicion.coords.longitude;
+          window.open(urlComoLlegar(origen), '_blank', 'noopener');
+          estado.textContent = 'Listo: abrimos el mapa con tu ubicación.';
+        },
+        () => {
+          estado.textContent = 'No pudimos obtener tu ubicación. Podés tocar "Cómo llegar" y escribir tu dirección.';
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    }
+
+    $('btnMiUbicacion').addEventListener('click', usarMiUbicacion);
+
+    /* ======================================================================
+       9. REPRODUCTOR DE AUDIO
+       ====================================================================== */
+    const streamUrl = C.transmision.url;
+    const audio = $('radioStream');
+    const silentAudio = $('silentAudio');
+    const playBtn = $('playBtn');
+    const playIcon = $('playIcon');
+    const volSlider = $('volSlider');
+    const volIcon = $('volIcon');
+    const statusDot = $('statusDot');
+    const statusText = $('statusText');
+
+    let temporizadorTimeout = null;
+    let temporizadorMinutos = 0;
+    let pausadoPorUsuario = true;
+    let reconectando = false;
+    let wakeLock = null;
+    let castSession = null;
+
+    function actualizarEstado(clase, texto) {
+      statusDot.className = 'status-dot ' + clase;
+      statusText.textContent = texto;
+    }
+
+    async function pedirWakeLock() {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await navigator.wakeLock.request('screen');
+        }
+      } catch (e) { /* no soportado */ }
+    }
+
+    function liberarWakeLock() {
+      if (wakeLock) {
+        wakeLock.release().then(() => { wakeLock = null; }).catch(() => {});
+      }
+    }
+
+    function actualizarEstadoMediaSession(estado) {
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = estado;
+    }
+
+    function configurarMediaSession(titulo) {
+      if (!('mediaSession' in navigator)) return;
+
+      let portada = C.imagenes.fondoMovil;
+      try { portada = new URL(C.imagenes.fondoMovil, window.location.href).href; } catch (e) {}
+
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: titulo || C.sitio.nombre,
+        artist: C.sitio.eslogan || C.sitio.nombre,
+        album: C.sitio.nombreCorto || '',
+        artwork: [{ src: portada, sizes: '512x512', type: 'image/jpeg' }]
+      });
+
+      navigator.mediaSession.setActionHandler('play', () => reproducirAudio());
+      navigator.mediaSession.setActionHandler('pause', () => pausarAudio());
+      navigator.mediaSession.setActionHandler('stop', () => pausarAudio());
+    }
+
+    configurarMediaSession();
+
+    const workerBlob = new Blob([
+      'let interval=null;' +
+      'self.onmessage=function(e){' +
+      '  if(e.data==="start"){ if(!interval){ interval=setInterval(function(){ self.postMessage("check"); },3000); } }' +
+      '  else if(e.data==="stop"){ if(interval){ clearInterval(interval); interval=null; } }' +
+      '};'
+    ], { type: 'application/javascript' });
+
+    const keepAliveWorker = new Worker(URL.createObjectURL(workerBlob));
+    keepAliveWorker.onmessage = (e) => {
+      if (e.data === 'check' && !pausadoPorUsuario) {
+        if (audio.paused || audio.readyState < 2) forzarReconexion();
+      }
+    };
+
+    function urlConMarcaDeTiempo(url) {
+      return url + (url.indexOf('?') === -1 ? '?' : '&') + 't=' + Date.now();
+    }
+
+    function reproducirAudio() {
+      cerrarVideo();
+
+      if (!streamUrl) {
+        actualizarEstado('offline', C.textos.sinRed);
+        return;
+      }
+
+      pausadoPorUsuario = false;
+      playIcon.className = 'fa-solid fa-spinner fa-spin';
+      actualizarEstado('reconnecting', C.textos.conectando);
+
+      silentAudio.play().catch(() => {});
+      pedirWakeLock();
+
+      audio.src = urlConMarcaDeTiempo(streamUrl);
+
+      audio.play().then(() => {
+        playBtn.classList.add('playing');
+        playBtn.setAttribute('aria-label', 'Pausar');
+        playIcon.className = 'fa-solid fa-pause';
+        actualizarEstado('online', C.textos.enLinea);
+        configurarMediaSession();
+        actualizarEstadoMediaSession('playing');
+        keepAliveWorker.postMessage('start');
+      }).catch(() => {
+        if (!pausadoPorUsuario) {
+          actualizarEstado('reconnecting', C.textos.reconectando);
+          setTimeout(reproducirAudio, 2000);
+        } else {
+          pausarAudio();
+        }
+      });
+    }
+
+    function pausarAudio() {
+      pausadoPorUsuario = true;
+      keepAliveWorker.postMessage('stop');
+      liberarWakeLock();
+
+      audio.pause();
+      silentAudio.pause();
+      audio.removeAttribute('src');
+      audio.load();
+
+      playBtn.classList.remove('playing');
+      playBtn.setAttribute('aria-label', 'Reproducir');
+      playIcon.className = 'fa-solid fa-play';
+      actualizarEstado('offline', C.textos.enPausa);
+      actualizarEstadoMediaSession('paused');
+    }
+
+    function alternarAudio() {
+      if (audio.paused || pausadoPorUsuario) reproducirAudio();
+      else pausarAudio();
+    }
+
+    function forzarReconexion() {
+      if (pausadoPorUsuario || reconectando) return;
+      reconectando = true;
+
+      playIcon.className = 'fa-solid fa-spinner fa-spin';
+      actualizarEstado('reconnecting', C.textos.reconectando);
+
+      audio.pause();
+      audio.removeAttribute('src');
+      audio.load();
+
+      setTimeout(() => {
+        if (pausadoPorUsuario) { reconectando = false; return; }
+
+        audio.src = urlConMarcaDeTiempo(streamUrl);
+        audio.play().then(() => {
+          playBtn.classList.add('playing');
+          playIcon.className = 'fa-solid fa-pause';
+          actualizarEstado('online', C.textos.enLinea);
+          actualizarEstadoMediaSession('playing');
+        }).catch(() => {
+          if (!pausadoPorUsuario) setTimeout(forzarReconexion, 2000);
+        }).finally(() => { reconectando = false; });
+      }, 300);
+    }
+
+    audio.addEventListener('waiting', () => {
+      if (!pausadoPorUsuario) {
+        playIcon.className = 'fa-solid fa-spinner fa-spin';
+        actualizarEstado('reconnecting', C.textos.buffering);
+      }
+    });
+
+    audio.addEventListener('playing', () => {
+      if (!pausadoPorUsuario) {
+        playBtn.classList.add('playing');
+        playIcon.className = 'fa-solid fa-pause';
+        actualizarEstado('online', C.textos.enLinea);
+      }
+    });
+
+    audio.addEventListener('pause', () => {
+      if (!pausadoPorUsuario && !reconectando) {
+        actualizarEstadoMediaSession('paused');
+        actualizarEstado('reconnecting', C.textos.reconectando);
+        setTimeout(() => { if (!pausadoPorUsuario) forzarReconexion(); }, 1000);
+      }
+    });
+
+    audio.addEventListener('ended', () => { if (!pausadoPorUsuario) forzarReconexion(); });
+    audio.addEventListener('stalled', () => { if (!pausadoPorUsuario) forzarReconexion(); });
+    audio.addEventListener('error', () => { if (!pausadoPorUsuario) forzarReconexion(); });
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && !pausadoPorUsuario) {
+        pedirWakeLock();
+        if (audio.paused || audio.readyState < 2) forzarReconexion();
+      }
+    });
+
+    window.addEventListener('online', () => { if (!pausadoPorUsuario) forzarReconexion(); });
+    window.addEventListener('offline', () => { if (!pausadoPorUsuario) actualizarEstado('offline', C.textos.sinRed); });
+
+    playBtn.addEventListener('click', alternarAudio);
+
+    function ajustarVolumen(valor) {
+      audio.volume = Number(valor);
+      volIcon.className = valor == 0
+        ? 'fa-solid fa-volume-xmark'
+        : (valor < 0.5 ? 'fa-solid fa-volume-low' : 'fa-solid fa-volume-high');
+    }
+
+    volSlider.addEventListener('input', (e) => ajustarVolumen(e.target.value));
+
+    function alternarSilencio() {
+      if (audio.volume > 0) {
+        volSlider.value = 0;
+        ajustarVolumen(0);
+      } else {
+        volSlider.value = 1;
+        ajustarVolumen(1);
+      }
+    }
+
+    volIcon.addEventListener('click', alternarSilencio);
+    volIcon.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); alternarSilencio(); }
+    });
+
+    /* ======================================================================
+       10. TÍTULO DE LA CANCIÓN (ZENO.FM)
+       ====================================================================== */
+    function iniciarMetadatos() {
+      const meta = C.transmision.metadatos || {};
+      const salida = $('songInfoText');
+
+      if (meta.proveedor !== 'zeno' || !meta.streamId) {
+        salida.textContent = C.sitio.nombre;
+        return;
+      }
+
+      const url = 'https://api.zeno.fm/mounts/metadata/subscribe/' + encodeURIComponent(meta.streamId);
+
+      try {
+        const fuente = new EventSource(url);
+
+        fuente.onmessage = (event) => {
+          try {
+            const datos = JSON.parse(event.data);
+            let titulo = datos.streamTitle || '';
+
+            if (!titulo && datos.currentSong) {
+              titulo = (datos.currentArtist || C.sitio.nombre) + ' - ' + datos.currentSong;
+            }
+
+            if (titulo && titulo.trim()) {
+              salida.textContent = titulo;
+              configurarMediaSession(titulo);
+            } else {
+              salida.textContent = C.sitio.nombre;
+            }
+          } catch (e) { /* mensaje inválido */ }
+        };
+
+        fuente.onerror = () => {
+          if (salida.textContent === C.transmision.textoEspera) {
+            salida.textContent = C.sitio.nombre;
+          }
+        };
+      } catch (e) {
+        salida.textContent = C.sitio.nombre;
+      }
+    }
+
+    /* ======================================================================
+       11. PRÉDICAS (YOUTUBE)
+       ====================================================================== */
+    const YT = C.predicas;
+    let intervaloYouTube = null;
+    let youtubeEnCurso = false;
+
+    function escaparHTML(valor) {
+      return String(valor == null ? '' : valor)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function formatearFecha(fechaISO) {
+      if (!fechaISO) return '';
+      const fecha = new Date(fechaISO);
+      if (isNaN(fecha.getTime())) return '';
+      return fecha.toLocaleDateString(C.sitio.idioma || 'es', {
+        day: 'numeric', month: 'short', year: 'numeric'
+      });
+    }
+
+    function urlCanal() {
+      const handle = (YT.canalHandle || '').replace(/^@?/, '@');
+      return 'https://www.youtube.com/' + handle;
+    }
+
+    async function pedirJSON(url, timeout) {
+      const control = new AbortController();
+      const reloj = setTimeout(() => control.abort(), timeout || 12000);
+
+      try {
+        const respuesta = await fetch(url, { method: 'GET', cache: 'no-store', signal: control.signal });
+        let datos = null;
+        try { datos = await respuesta.json(); } catch (e) {}
+
+        if (!respuesta.ok) {
+          const mensaje = datos && datos.error && datos.error.message
+            ? datos.error.message
+            : 'HTTP ' + respuesta.status;
+          throw new Error(mensaje);
+        }
+        return datos;
+      } finally {
+        clearTimeout(reloj);
+      }
+    }
+
+    function crearBotonVideo(videoId, titulo, texto) {
+      const boton = document.createElement('button');
+      boton.type = 'button';
+      boton.className = 'btn-play-video';
+
+      boton.appendChild(icono('fa-solid fa-play'));
+      boton.appendChild(document.createTextNode(' ' + texto));
+
+      boton.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        reproducirVideo(videoId, titulo);
+      });
+
+      return boton;
+    }
+
+    function dibujarItem(contenedor, videoId, titulo, fechaTexto, esVivo) {
+      const item = document.createElement('div');
+      item.className = esVivo ? 'schedule-item live-item' : 'schedule-item';
+
+      const info = document.createElement('div');
+      info.className = 'schedule-info';
+
+      if (esVivo) {
+        const etiqueta = document.createElement('span');
+        etiqueta.className = 'badge-live';
+        etiqueta.appendChild(icono('fa-solid fa-satellite-dish'));
+        etiqueta.appendChild(document.createTextNode(' EN VIVO AHORA'));
+        info.appendChild(etiqueta);
+      }
+
+      const tituloEl = document.createElement('span');
+      tituloEl.className = 'schedule-title';
+      tituloEl.textContent = titulo || 'Transmisión en vivo';
+      info.appendChild(tituloEl);
+
+      const sub = document.createElement('span');
+      sub.className = 'schedule-days';
+      sub.textContent = esVivo
+        ? (C.reuniones.nombre || C.sitio.iglesia || 'En vivo')
+        : (fechaTexto ? 'Publicado el ' + fechaTexto : '');
+      info.appendChild(sub);
+
+      item.appendChild(info);
+      item.appendChild(crearBotonVideo(
+        videoId,
+        titulo || 'Transmisión en vivo',
+        esVivo ? (YT.textoBotonVivo || 'Ver Vivo') : (YT.textoBotonArchivo || 'Ver aquí')
+      ));
+
+      contenedor.appendChild(item);
+    }
+
+    function reproducirVideo(videoId, titulo) {
+      if (!videoId) return;
+      pausarAudio();
+
+      const contenedor = $('videoWrapper');
+      const reproductor = $('ytIframePlayer');
+      const tituloEl = $('videoTitleDisplay');
+
+      if (!contenedor || !reproductor || !tituloEl) return;
+
+      tituloEl.textContent = titulo || 'Reproduciendo...';
+      reproductor.src = 'https://www.youtube.com/embed/' + encodeURIComponent(videoId) + '?autoplay=1&playsinline=1&rel=0';
+      contenedor.style.display = 'block';
+
+      const contenido = document.querySelector('#modalPredicas .modal-content');
+      if (contenido) contenido.scrollTop = 0;
+    }
+
+    function cerrarVideo() {
+      const contenedor = $('videoWrapper');
+      const reproductor = $('ytIframePlayer');
+      if (contenedor && reproductor) {
+        reproductor.removeAttribute('src');
+        contenedor.style.display = 'none';
+      }
+    }
+
+    $('cerrarVideo').addEventListener('click', cerrarVideo);
+
+    async function resolverCanalId() {
+      if (!YT.canalHandle) return YT.canalId;
+
+      try {
+        const url = 'https://www.googleapis.com/youtube/v3/channels?part=id&forHandle=' +
+          encodeURIComponent(YT.canalHandle) + '&key=' + encodeURIComponent(YT.apiKey);
+        const datos = await pedirJSON(url);
+
+        if (datos.items && datos.items.length && datos.items[0].id) return datos.items[0].id;
+      } catch (e) {
+        console.warn('No se pudo resolver el handle de YouTube:', e);
+      }
+
+      return YT.canalId;
+    }
+
+    function mensajePredicas(contenedor, mensaje, detalle) {
+      contenedor.innerHTML = '';
+
+      const caja = document.createElement('div');
+      caja.className = 'empty-message';
+      caja.appendChild(icono('fa-brands fa-youtube'));
+      caja.appendChild(document.createElement('br'));
+      caja.appendChild(document.createTextNode(mensaje));
+
+      if (detalle) {
+        caja.appendChild(document.createElement('br'));
+        caja.appendChild(document.createElement('br'));
+        const pequeño = document.createElement('span');
+        pequeño.style.fontSize = '0.72rem';
+        pequeño.textContent = detalle;
+        caja.appendChild(pequeño);
+      }
+
+      caja.appendChild(document.createElement('br'));
+      caja.appendChild(document.createElement('br'));
+
+      const enlace = document.createElement('a');
+      enlace.href = urlCanal();
+      enlace.target = '_blank';
+      enlace.rel = 'noopener';
+      enlace.textContent = 'Abrir canal en YouTube';
+      caja.appendChild(enlace);
+
+      contenedor.appendChild(caja);
+    }
+
+    async function cargarVideosYouTube() {
+      if (youtubeEnCurso) return;
+
+      const contenedorVivo = $('liveStreamContainer');
+      const contenedorVideos = $('latestVideosContainer');
+      if (!contenedorVivo || !contenedorVideos) return;
+
+      if (!YT.apiKey) {
+        contenedorVivo.innerHTML = '';
+        mensajePredicas(contenedorVideos,
+          'Falta configurar la API Key de YouTube.',
+          'Pegala en config.js, dentro del bloque "predicas" (apiKey).');
+        return;
+      }
+
+      youtubeEnCurso = true;
+
+      contenedorVivo.innerHTML =
+        '<div class="empty-message"><i class="fa-solid fa-spinner fa-spin"></i> Comprobando transmisión en vivo...</div>';
+      contenedorVideos.innerHTML =
+        '<div class="empty-message"><i class="fa-solid fa-spinner fa-spin"></i> Cargando transmisiones...</div>';
+
+      try {
+        const canalId = await resolverCanalId();
+
+        if (!canalId) throw new Error('No se encontró el canal de YouTube.');
+
+        const urlCanalDatos = 'https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=' +
+          encodeURIComponent(canalId) + '&key=' + encodeURIComponent(YT.apiKey);
+
+        const datosCanal = await pedirJSON(urlCanalDatos);
+        const listaSubidas = datosCanal.items && datosCanal.items[0] &&
+          datosCanal.items[0].contentDetails &&
+          datosCanal.items[0].contentDetails.relatedPlaylists &&
+          datosCanal.items[0].contentDetails.relatedPlaylists.uploads;
+
+        if (!listaSubidas) throw new Error('No se encontró la lista de videos del canal.');
+
+        const urlPlaylist = 'https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=' +
+          encodeURIComponent(listaSubidas) + '&maxResults=50&key=' + encodeURIComponent(YT.apiKey);
+
+        const datosPlaylist = await pedirJSON(urlPlaylist);
+
+        const items = (datosPlaylist.items || []).filter((i) => i && i.contentDetails && i.contentDetails.videoId);
+        const ids = items.map((i) => i.contentDetails.videoId);
+
+        if (!ids.length) throw new Error('El canal no devolvió videos.');
+
+        const urlVideos = 'https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails&id=' +
+          ids.map(encodeURIComponent).join(',') + '&key=' + encodeURIComponent(YT.apiKey);
+
+        const datosVideos = await pedirJSON(urlVideos);
+        const videos = datosVideos.items || [];
+
+        let videoVivo = videos.find((v) => {
+          const detalles = v.liveStreamingDetails || {};
+          const estado = v.snippet && v.snippet.liveBroadcastContent;
+          return estado === 'live' ||
+            (detalles.actualStartTime && !detalles.actualEndTime) ||
+            detalles.concurrentViewers !== undefined;
+        });
+
+        if (!videoVivo) {
+          try {
+            const urlVivo = 'https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=' +
+              encodeURIComponent(canalId) + '&eventType=live&type=video&order=date&maxResults=1&key=' +
+              encodeURIComponent(YT.apiKey);
+
+            const datosVivo = await pedirJSON(urlVivo);
+
+            if (datosVivo.items && datosVivo.items.length && datosVivo.items[0].id && datosVivo.items[0].id.videoId) {
+              const idVivo = datosVivo.items[0].id.videoId;
+              videoVivo = videos.find((v) => v.id === idVivo) || {
+                id: idVivo,
+                snippet: datosVivo.items[0].snippet || {}
+              };
+            }
+          } catch (e) {
+            console.warn('No se pudo consultar el vivo actual:', e);
+          }
+        }
+
+        const idVivo = videoVivo ? videoVivo.id : null;
+
+        contenedorVivo.innerHTML = '';
+        if (videoVivo) {
+          dibujarItem(contenedorVivo, videoVivo.id,
+            (videoVivo.snippet && videoVivo.snippet.title) || 'Transmisión en vivo', '', true);
+        }
+
+        const cantidad = Number(YT.cantidadUltimas) || 4;
+
+        const archivados = videos
+          .filter((v) => !!(v && v.id && v.id !== idVivo))
+          .sort((a, b) => {
+            const fa = new Date((a.liveStreamingDetails && a.liveStreamingDetails.actualEndTime) ||
+              (a.snippet && a.snippet.publishedAt) || 0);
+            const fb = new Date((b.liveStreamingDetails && b.liveStreamingDetails.actualEndTime) ||
+              (b.snippet && b.snippet.publishedAt) || 0);
+            return fb - fa;
+          })
+          .slice(0, cantidad);
+
+        contenedorVideos.innerHTML = '';
+
+        archivados.forEach((v) => {
+          dibujarItem(contenedorVideos, v.id,
+            (v.snippet && v.snippet.title) || 'Transmisión en vivo',
+            formatearFecha((v.liveStreamingDetails && v.liveStreamingDetails.actualEndTime) ||
+              (v.snippet && v.snippet.publishedAt)),
+            false);
+        });
+
+        if (!archivados.length) {
+          try {
+            const urlArchivados = 'https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=' +
+              encodeURIComponent(canalId) + '&eventType=completed&type=video&order=date&maxResults=10&key=' +
+              encodeURIComponent(YT.apiKey);
+
+            const datosArchivados = await pedirJSON(urlArchivados);
+
+            (datosArchivados.items || [])
+              .filter((i) => i && i.id && i.id.videoId && i.id.videoId !== idVivo)
+              .slice(0, cantidad)
+              .forEach((i) => {
+                dibujarItem(contenedorVideos, i.id.videoId,
+                  (i.snippet && i.snippet.title) || 'Transmisión en vivo',
+                  formatearFecha(i.snippet && i.snippet.publishedAt), false);
+              });
+          } catch (e) {
+            console.warn('No se pudieron obtener transmisiones archivadas:', e);
+          }
+        }
+
+        if (!contenedorVideos.children.length) {
+          mensajePredicas(contenedorVideos, 'Todavía no hay videos publicados en el canal.');
+        }
+      } catch (error) {
+        console.error('Error al obtener las transmisiones de YouTube:', error);
+        contenedorVivo.innerHTML = '';
+        mensajePredicas(contenedorVideos,
+          'No se pudieron cargar las transmisiones.',
+          String((error && error.message) || error));
+      } finally {
+        youtubeEnCurso = false;
+      }
+    }
+
+    function iniciarAutoRefrescoYouTube() {
+      cargarVideosYouTube();
+
+      if (intervaloYouTube) clearInterval(intervaloYouTube);
+
+      intervaloYouTube = setInterval(() => {
+        const modal = $('modalPredicas');
+        if (modal && getComputedStyle(modal).display !== 'none') cargarVideosYouTube();
+      }, Number(YT.intervaloRefresco) || 60000);
+    }
+
+    function detenerAutoRefrescoYouTube() {
+      if (intervaloYouTube) {
+        clearInterval(intervaloYouTube);
+        intervaloYouTube = null;
+      }
+    }
+
+    /* ======================================================================
+       12. TEMPORIZADOR PARA DORMIR
+       ====================================================================== */
+    const OPCIONES_TIMER = (C.temporizador.opciones || []).map(Number).filter((n) => n > 0);
+    const ETIQUETAS_TIMER = [0].concat(OPCIONES_TIMER);
+
+    function cicloTemporizador() {
+      const indiceActual = ETIQUETAS_TIMER.indexOf(temporizadorMinutos);
+      const siguiente = ETIQUETAS_TIMER[(indiceActual + 1) % ETIQUETAS_TIMER.length];
+
+      temporizadorMinutos = siguiente;
+      clearTimeout(temporizadorTimeout);
+
+      const etiqueta = $('timerLabel');
+
+      if (temporizadorMinutos > 0) {
+        if (etiqueta) etiqueta.textContent = temporizadorMinutos + 'm';
+        temporizadorTimeout = setTimeout(() => {
+          if (!pausadoPorUsuario) pausarAudio();
+          temporizadorMinutos = 0;
+          if ($('timerLabel')) $('timerLabel').textContent = 'Off';
+        }, temporizadorMinutos * 60 * 1000);
+      } else if (etiqueta) {
+        etiqueta.textContent = 'Off';
+      }
+    }
+
+    /* ======================================================================
+       13. COMPARTIR / SMART TV / INSTALAR
+       ====================================================================== */
+    function compartirSitio() {
+      const datos = {
+        title: C.sitio.nombre,
+        text: C.sitio.descripcion || C.sitio.nombre,
+        url: C.sitio.urlPublica || window.location.href
+      };
+
+      if (navigator.share) {
+        navigator.share(datos).catch(() => {});
+      } else if (navigator.clipboard) {
+        navigator.clipboard.writeText(datos.url)
+          .then(() => alert('¡Enlace copiado al portapapeles!'))
+          .catch(() => alert(datos.url));
+      } else {
+        alert(datos.url);
+      }
+    }
+
+    window.__onGCastApiAvailable = function (disponible) {
+      if (!disponible) return;
+
+      try {
+        const contexto = cast.framework.CastContext.getInstance();
+        contexto.setOptions({
+          receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+          autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGINAL_URL
+        });
+
+        contexto.addEventListener(
+          cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
+          function () {
+            castSession = contexto.getCurrentSession();
+            const boton = document.querySelector('.cast-btn');
+            if (!boton) return;
+
+            if (castSession) {
+              boton.style.backgroundColor = '#22c55e';
+              boton.title = 'Transmitiendo a Smart TV (tocar para desconectar)';
+            } else {
+              boton.style.backgroundColor = '#3b82f6';
+              boton.title = 'Transmitir a Smart TV';
+            }
+          }
+        );
+      } catch (e) { /* Cast no disponible */ }
+    };
+
+    function transmitirATV() {
+      try {
+        if (typeof cast === 'undefined' || !cast.framework) {
+          alert('La transmisión a Smart TV requiere Google Chrome o un navegador compatible.');
+          return;
+        }
+
+        const contexto = cast.framework.CastContext.getInstance();
+        const sesionActual = contexto.getCurrentSession();
+
+        if (sesionActual) {
+          if (confirm('¿Deseás detener la transmisión en la Smart TV?')) sesionActual.endSession(true);
+          return;
+        }
+
+        contexto.requestSession().then(() => {
+          const sesion = contexto.getCurrentSession();
+          if (!sesion) return;
+
+          pausarAudio();
+
+          const info = new chrome.cast.media.MediaInfo(streamUrl, C.transmision.tipo || 'audio/mp3');
+          info.metadata = new chrome.cast.media.MusicTrackMediaMetadata();
+          info.metadata.title = C.sitio.nombreCorto || C.sitio.nombre;
+          info.metadata.subtitle = C.sitio.eslogan || '';
+
+          try {
+            info.metadata.images = [{ url: new URL(C.imagenes.fondoMovil, window.location.href).href }];
+          } catch (e) {}
+
+          sesion.loadMedia(new chrome.cast.media.LoadRequest(info));
+        }).catch(() => {
+          console.log('Sesión de Cast cancelada o sin dispositivos cercanos.');
+        });
+      } catch (e) {
+        alert('Asegurate de estar conectado a la misma red Wi-Fi que tu Smart TV.');
+      }
+    }
+
+    let promptInstalacion = null;
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      promptInstalacion = e;
+    });
+
+    function instalarPWA() {
+      if (promptInstalacion) {
+        promptInstalacion.prompt();
+        promptInstalacion.userChoice.then(() => { promptInstalacion = null; });
+      } else {
+        alert('Para instalar la App:\n• En Chrome: menú de 3 puntos → "Instalar app" o "Agregar a la pantalla principal".\n• En Safari: Compartir → "Agregar al inicio".');
+      }
+    }
+
+    if ('serviceWorker' in navigator && /^https?:$/.test(window.location.protocol)) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+
+    /* ======================================================================
+       15. ARRANQUE
+       ====================================================================== */
+    aplicarIdentidad();
+    renderBarraSuperior();
+    renderProgramacion();
+    renderReuniones();
+    renderUbicacion();
+    renderRedes();
+    renderVersiculo();
+    programarCambioDeVersiculo();
+    iniciarMetadatos();
+
+    // Títulos de modales desde la configuración
+    const h3Predicas = $('tituloPredicas');
+    if (h3Predicas && YT.titulo) {
+      h3Predicas.innerHTML = '';
+      h3Predicas.appendChild(icono('fa-brands fa-youtube'));
+      h3Predicas.lastChild.style.color = '#ff4d4d';
+      h3Predicas.appendChild(document.createTextNode(' ' + YT.titulo));
+    }
+
+    if (C.ubicacion.titulo) {
+      const h3Ubicacion = $('tituloUbicacion');
+      h3Ubicacion.innerHTML = '';
+      h3Ubicacion.appendChild(icono('fa-solid fa-location-dot'));
+      h3Ubicacion.lastChild.style.color = C.marca.primario;
+      h3Ubicacion.appendChild(document.createTextNode(' ' + C.ubicacion.titulo));
+    }
+
+    if (C.reuniones.titulo) {
+      const h3Reuniones = $('tituloReuniones');
+      h3Reuniones.innerHTML = '';
+      h3Reuniones.appendChild(icono('fa-solid fa-church'));
+      h3Reuniones.lastChild.style.color = C.marca.secundario;
+      h3Reuniones.appendChild(document.createTextNode(' ' + C.reuniones.titulo));
+    }
+
+    const enlaceCanal = $('canalYoutubeLink');
+    if (enlaceCanal) enlaceCanal.href = urlCanal();
+
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+{
+  "id": "./",
+  "name": "Radio 88.1 FM — Gloria de Dios",
+  "short_name": "Radio 88.1",
+  "description": "¡Escuchá Radio 88.1 FM Gloria de Dios en vivo y bendecí tu vida!",
+  "lang": "es",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#f59e0b",
+  "categories": ["media", "music", "lifestyle"],
+  "icons": [
+    {
+      "src": "assets/icono.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "assets/fondo-movil.jpg",
+      "sizes": "768x1365",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Radio 88.1 FM en el celular"
+    },
+    {
+      "src": "assets/fondo-escritorio.jpg",
+      "sizes": "1376x768",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Radio 88.1 FM en la computadora"
+    }
+  ]
+}

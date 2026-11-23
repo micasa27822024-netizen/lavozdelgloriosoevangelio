@@ -1,0 +1,19 @@
+{
+  "name": "plantilla-maestra-radio",
+  "version": "1.0.0",
+  "description": "Plantilla maestra de web/PWA para radios e iglesias online: reproductor en vivo, versículo diario, programación, reuniones, prédicas de YouTube y ubicación con mapa.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": ["radio", "pwa", "streaming", "iglesia", "plantilla"],
+  "license": "MIT",
+  "dependencies": {
+    "cloudinary": "^2.0.0",
+    "express": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}
