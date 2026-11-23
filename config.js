@@ -62,7 +62,7 @@ window.CONFIG = {
      4) TRANSMISIÓN DE AUDIO
      ========================================================================== */
   transmision: {
-    url:  "https://stream.zeno.fm/ggq0ed8yus8uv.mp3", // Link directo del stream
+    url:  "https://stream.zeno.fm/2cswccyju0ktv.mp3", // Link directo del stream
     tipo: "audio/mp3",
     textoEspera: "Sintonizando transmisión en vivo...",
 
@@ -71,7 +71,7 @@ window.CONFIG = {
        Si no usás Zeno, dejá proveedor en "" y se mostrará el nombre del sitio. */
     metadatos: {
       proveedor: "zeno",
-      streamId:  "391d8c8yus8uv" // ID que aparece en api.zeno.fm de tu emisora
+      streamId:  "2cswccyju0ktv" // ID que aparece en api.zeno.fm de tu emisora
     }
   },
 
