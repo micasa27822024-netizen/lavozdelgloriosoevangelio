@@ -206,8 +206,8 @@ window.CONFIG = {
      ========================================================================== */
   redes: [
     { tipo: "facebook", etiqueta: "Facebook",       icono: "fa-brands fa-facebook-f", url: "https://www.facebook.com/iglesiael.gloriosoevangelio" },
-    { tipo: "whatsapp", etiqueta: "WhatsApp",       icono: "fa-brands fa-whatsapp",    url: "https://wa.me/5491139064858?text=Hola%20Radio%2088.1%20FM,%20quiero%20mandar%20un%20saludo" },
-    { tipo: "oracion",  etiqueta: "Pedir Oración",  icono: "fa-solid fa-hands-praying", url: "https://wa.me/5491139064858?text=Hola%20Radio%2088.1%20FM,%20quisiera%20dejar%20una%20petición%20de%20oración:" },
+    { tipo: "whatsapp", etiqueta: "WhatsApp",       icono: "fa-brands fa-whatsapp",    url: "https://wa.me/5491139064858?text=Hola%20Radio%20la%20voz%20del%20glorioso%20evangelio%20quiero%20mandar%20un%20saludo" },
+    { tipo: "oracion",  etiqueta: "Pedir Oración",  icono: "fa-solid fa-hands-praying", url: "https://wa.me/5491139064858?text=Hola%20Radio%20la%20voz%20del%20glorioso%20evangelio%20quisiera%20dejar%20una%20petición%20de%20oración:" },
     { tipo: "youtube",  etiqueta: "YouTube",        icono: "fa-brands fa-youtube",     url: "https://www.youtube.com/@aycge1055" },
     { tipo: "compartir",  etiqueta: "Compartir App",           icono: "fa-solid fa-share-nodes" },
     { tipo: "chromecast", etiqueta: "Transmitir a Smart TV",    icono: "fa-solid fa-tv" }
