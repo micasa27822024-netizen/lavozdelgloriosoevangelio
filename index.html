@@ -3215,6 +3215,38 @@
     }
 
     /* ======================================================================
+       14-bis. POSICIÓN DEL BOTÓN DEL CHAT EN EL CELULAR
+       En pantallas angostas (celular parado) el botón se sube al espacio libre
+       que queda arriba de la tarjeta del versículo, así no tapa el volumen
+       del reproductor. En pantalla grande queda como siempre, abajo a la derecha.
+       ====================================================================== */
+    function ubicarBotonChat() {
+      const boton = $('chatFlotante');
+      if (!boton) return;
+
+      const enCelular = window.matchMedia('(max-width: 600px)').matches;
+      const seccion = document.querySelector('.bottom-section');
+
+      if (!enCelular || !seccion) {
+        boton.style.top = '';
+        boton.style.bottom = '';
+        return;
+      }
+
+      const bordeSuperior = seccion.getBoundingClientRect().top;
+      const destino = Math.max(70, Math.round(bordeSuperior - 56));
+
+      boton.style.bottom = 'auto';
+      boton.style.top = destino + 'px';
+    }
+
+    window.addEventListener('resize', ubicarBotonChat);
+    window.addEventListener('orientationchange', function () { setTimeout(ubicarBotonChat, 250); });
+    window.addEventListener('load', ubicarBotonChat);
+    setTimeout(ubicarBotonChat, 300);
+    setTimeout(ubicarBotonChat, 1500);
+
+    /* ======================================================================
        15. ARRANQUE
        ====================================================================== */
     aplicarIdentidad();
@@ -3223,6 +3255,7 @@
     renderReuniones();
     renderUbicacion();
     configurarBotonChat();
+    ubicarBotonChat();
     renderRedes();
     renderVersiculo();
     programarCambioDeVersiculo();
