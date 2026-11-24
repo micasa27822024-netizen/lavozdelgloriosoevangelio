@@ -256,8 +256,8 @@ window.CONFIG = {
     // Si "apiKey" queda vacío, el botón de moderador no aparece.
     moderacion: {
       apiKey: "AIzaSyCOjDEnU9rVz7GtLC1h73OllI3ag7I6O7Q",  // ← Web API Key del proyecto (Configuración del proyecto → General)
-      email:  "josue@elgloriosoevangelio.com",   // ← correo del moderador (solo para completar el campo)
-      email:  "guillermo@elgloriosoevangelio.com"   // ← correo del moderador (solo para completar el campo)
+      email:  "josue@elgloriosoevangelio.com",  // ← se completa solo en el formulario (no es la contraseña)
+      emails: ["josue@elgloriosoevangelio.com", "guillermo@elgloriosoevangelio.com"]  // ← los que pueden moderar (deben figurar en las reglas de Firebase)
     }
   },
 

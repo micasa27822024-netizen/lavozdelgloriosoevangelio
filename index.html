@@ -50,6 +50,7 @@
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    [hidden] { display: none !important; }
 
     body, html {
       height: 100%;
@@ -2870,6 +2871,7 @@
     /* ------------------------- Moderación ------------------------- */
     const CHAT_MOD = CHAT.moderacion || {};
     let chatToken = '';
+    let chatRefresh = '';
     let chatModoQuien = '';
 
     function moderacionConfigurada() {
@@ -2883,6 +2885,7 @@
         const datos = JSON.parse(guardado);
         if (datos && datos.token) {
           chatToken = datos.token;
+          chatRefresh = datos.refresh || '';
           chatModoQuien = datos.email || '';
         }
       } catch (e) {}
@@ -2890,7 +2893,7 @@
 
     function guardarSesionModerador() {
       try {
-        sessionStorage.setItem('chat-moderador', JSON.stringify({ token: chatToken, email: chatModoQuien }));
+        sessionStorage.setItem('chat-moderador', JSON.stringify({ token: chatToken, refresh: chatRefresh, email: chatModoQuien }));
       } catch (e) {}
     }
 
@@ -2909,6 +2912,13 @@
       if (boton) {
         boton.hidden = !moderacionConfigurada();
         boton.classList.toggle('activo', !!chatToken);
+      }
+
+      const campoCorreo = $('chatModoEmail');
+      if (campoCorreo && !campoCorreo.value) {
+        const correos = [].concat(CHAT_MOD.emails || CHAT_MOD.email || []);
+        const primero = correos.filter(function (c) { return c && String(c).trim(); })[0];
+        if (primero) campoCorreo.value = String(primero).trim();
       }
 
       if (!panel) return;
@@ -2962,6 +2972,7 @@
         }
 
         chatToken = datos.idToken || '';
+        chatRefresh = datos.refreshToken || '';
         chatModoQuien = datos.email || email;
         guardarSesionModerador();
         campoPass.value = '';
@@ -2975,10 +2986,37 @@
 
     function salirModoModerador() {
       chatToken = '';
+      chatRefresh = '';
       chatModoQuien = '';
       try { sessionStorage.removeItem('chat-moderador'); } catch (e) {}
       actualizarPanelModo();
       pintarChat();
+    }
+
+    function urlBorradoChat(id) {
+      return chatBase() + '/' + chatRuta() + '/' + encodeURIComponent(id) + '.json?auth=' + encodeURIComponent(chatToken);
+    }
+
+    async function renovarAccesoModerador() {
+      if (!chatRefresh) return false;
+      try {
+        const respuesta = await fetch(
+          'https://securetoken.googleapis.com/v1/token?key=' + encodeURIComponent(CHAT_MOD.apiKey),
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'grant_type=refresh_token&refresh_token=' + encodeURIComponent(chatRefresh)
+          }
+        );
+        const datos = await respuesta.json();
+        if (!respuesta.ok || !datos || !datos.id_token) return false;
+        chatToken = datos.id_token;
+        if (datos.refresh_token) chatRefresh = datos.refresh_token;
+        guardarSesionModerador();
+        return true;
+      } catch (e) {
+        return false;
+      }
     }
 
     async function borrarMensajeChat(id) {
@@ -2988,16 +3026,31 @@
       definirEstadoChat('Borrando…');
 
       try {
-        const url = chatBase() + '/' + chatRuta() + '/' + encodeURIComponent(id) + '.json?auth=' + encodeURIComponent(chatToken);
-        const respuesta = await fetch(url, { method: 'DELETE' });
+        let respuesta = await fetch(urlBorradoChat(id), { method: 'DELETE' });
+
+        if (respuesta.status === 401 || respuesta.status === 403) {
+          // Primero intentamos renovar el acceso por si el token caducó.
+          const renovado = await renovarAccesoModerador();
+          if (renovado) respuesta = await fetch(urlBorradoChat(id), { method: 'DELETE' });
+
+          if (respuesta.status === 401 || respuesta.status === 403) {
+            if (renovado) {
+              // El acceso es válido pero las reglas no le dan permiso a este correo.
+              definirEstadoChat(
+                'Firebase no autoriza el borrado con el correo «' + (chatModoQuien || 'con el que entraste') +
+                '». Ese correo tiene que estar escrito en las reglas de la base de datos.',
+                true
+              );
+            } else {
+              salirModoModerador();
+              definirEstadoChat('La sesión venció. Volvé a entrar en modo moderador.', true);
+            }
+            return;
+          }
+        }
 
         if (!respuesta.ok) {
-          if (respuesta.status === 401) {
-            salirModoModerador();
-            definirEstadoChat('La sesión venció. Volvé a entrar en modo moderador.', true);
-          } else {
-            definirEstadoChat('No se pudo borrar el mensaje.', true);
-          }
+          definirEstadoChat('No se pudo borrar el mensaje.', true);
           return;
         }
 

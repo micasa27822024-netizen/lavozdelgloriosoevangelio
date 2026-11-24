@@ -301,7 +301,8 @@ chat: {
 
   moderacion: {
     apiKey: "",
-    email:  ""
+    email:  "moderador@iglesia.com",           // se completa solo en el formulario
+    emails: ["moderador@iglesia.com"]          // todos los que pueden moderar (los mismos de las reglas)
   }
 }
 ```
