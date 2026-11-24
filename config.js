@@ -214,7 +214,55 @@ window.CONFIG = {
   ],
 
   /* ==========================================================================
-     12) TEXTOS DE ESTADO DEL REPRODUCTOR
+     12) CHAT DE LA IGLESIA (Firebase)
+     --------------------------------------------------------------------------
+     Chat grupal: cualquiera que entra puede leer y escribir, y el ministerio
+     puede borrar mensajes en "modo moderador".
+     Funciona con una base gratuita de Firebase (Realtime Database).
+     Los pasos completos están en la guía, sección "Chat de la iglesia".
+
+     databaseURL: la URL que aparece arriba de todo en Firebase, dentro de
+     Realtime Database. Ejemplo:
+       "https://mi-iglesia-chat-default-rtdb.firebaseio.com"
+     Si queda vacía, el botón del chat no se muestra.
+     ========================================================================== */
+  chat: {
+    habilitado:  true,
+    titulo:      "Chat de la iglesia",
+    databaseURL: "https://el-glorioso-evangelio-chat-default-rtdb.firebaseio.com/",  // ← Pegá acá la URL de tu Realtime Database
+    ruta:        "chat/mensajes",
+    maxNombre:   20,
+    maxCaracteres: 280,
+    esperaEnvio: 4000, // milisegundos entre mensaje y mensaje
+    textoVacio:  "Todavía no hay mensajes. ¡Escribí el primero!",
+    textoBloqueado: "Ese mensaje tiene palabras que no están permitidas.",
+
+    // Filtro automático de palabras ofensivas.
+    // modo: "censurar" tacha las palabras con asteriscos.
+    //       "bloquear" no deja enviar el mensaje.
+    filtro: {
+      activo: true,
+      modo: "censurar",
+      palabras: [
+        "puta", "puto", "putita", "putito", "mierda", "concha", "conchuda",
+        "forro", "forra", "pelotudo", "pelotuda", "boludo", "boluda", "sorete",
+        "orto", "cagon", "cagada", "pija", "verga", "chota", "imbecil",
+        "idiota", "tarado", "mogolico", "zorra", "perra", "maricon",
+        "hijo de puta", "la concha de tu madre", "andate a la mierda"
+      ]
+    },
+
+    // Moderación: permite borrar mensajes con correo y contraseña.
+    // Si "apiKey" queda vacío, el botón de moderador no aparece.
+    moderacion: {
+      apiKey: "AIzaSyCOjDEnU9rVz7GtLC1h73OllI3ag7I6O7Q",  // ← Web API Key del proyecto (Configuración del proyecto → General)
+      email:  "josue@elgloriosoevangelio.com"   // ← correo del moderador (solo para completar el campo)
+      email:  "guillermo@elgloriosoevangelio.com"   // ← correo del moderador (solo para completar el campo)
+    }
+  },
+
+  /* ==========================================================================
+     13) TEXTOS DE ESTADO DEL REPRODUCTOR
      ========================================================================== */
   textos: {
     enPausa:      "EN PAUSA",
@@ -227,14 +275,14 @@ window.CONFIG = {
   },
 
   /* ==========================================================================
-     13) TEMPORIZADOR PARA DORMIR (minutos)
+     14) TEMPORIZADOR PARA DORMIR (minutos)
      ========================================================================== */
   temporizador: {
     opciones: [15, 30, 60]
   },
 
   /* ==========================================================================
-     14) VERSÍCULOS
+     15) VERSÍCULOS
      La lista completa está en "versiculos.js". Podés editarla ahí.
      ========================================================================== */
   versiculo: {

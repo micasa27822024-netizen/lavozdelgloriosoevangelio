@@ -5,7 +5,7 @@
    (por ejemplo radio-v1 → radio-v2). Así los celulares descargan lo nuevo.
    ============================================================================ */
 
-const VERSION = 'radio-v2';
+const VERSION = 'radio-v3';
 const CACHE_NAME = 'plantilla-' + VERSION;
 
 /* Archivos que se guardan para que la app abra aunque no haya internet.

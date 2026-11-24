@@ -5,15 +5,23 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "limpiar-chat": "node limpiar-chat.js",
+    "limpiar-chat:simular": "node limpiar-chat.js --simular"
   },
-  "keywords": ["radio", "pwa", "streaming", "iglesia", "plantilla"],
+  "keywords": [
+    "radio",
+    "pwa",
+    "streaming",
+    "iglesia",
+    "plantilla"
+  ],
   "license": "MIT",
   "dependencies": {
     "cloudinary": "^2.0.0",
     "express": "^4.19.2"
   },
   "engines": {
-    "node": ">=16"
+    "node": ">=18"
   }
 }

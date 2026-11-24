@@ -23,6 +23,7 @@ plantilla-radio/
 │   ├── fondo-movil.jpg
 │   ├── fondo-escritorio.jpg
 │   └── icono.png
+├── limpiar-chat.js     ← OPCIONAL: borra mensajes viejos del chat
 ├── server.js           ← OPCIONAL: backend para saludos de audio
 ├── package.json
 ├── .env.example
@@ -81,6 +82,7 @@ Listo. Con eso ya tenés una radio distinta, con la misma calidad de la original
 | `reuniones` | Días y horarios de la iglesia (ventana "Reuniones"). |
 | `predicas` | Canal de YouTube y API Key. |
 | `ubicacion` | Dirección de la iglesia, mapa de Google y botones «Cómo llegar» / «Usar mi ubicación». |
+| `chat` | Chat grupal con Firebase: filtro de palabras, moderación y limpieza automática. |
 | `redes` | Botones del pie: Facebook, WhatsApp, oración, YouTube, compartir, Smart TV. |
 | `textos` | Mensajes de estado del reproductor. |
 | `temporizador` | Minutos del temporizador para dormir. |
@@ -224,7 +226,187 @@ Si tu iglesia cambia de dirección, alcanza con corregir `direccion`,
 
 ---
 
-## 8. App instalable (PWA)
+## 8. Chat de la iglesia (Firebase)
+
+Es un chat grupal: cualquiera que entra a la web puede leer y escribir, sin
+crear cuenta. Aparece como un botón redondo con ícono de chat en el costado
+derecho de la pantalla, y los mensajes se actualizan solos, en tiempo real.
+
+Trae tres cosas pensadas para una iglesia:
+
+- **Filtro automático de palabras ofensivas** (se tachan con asteriscos o se
+  bloquea el envío, según cómo lo configures).
+- **Modo moderador** para que el ministerio borre mensajes con correo y
+  contraseña.
+- **Script de limpieza** (`limpiar-chat.js`) para borrar mensajes viejos
+  automáticamente.
+
+Funciona con **Firebase Realtime Database**, un servicio gratuito de Google.
+No hay que instalar nada ni tocar código: solo crear la base y pegar su
+dirección en `config.js`.
+
+### Paso a paso
+
+1. Entrá a [console.firebase.google.com](https://console.firebase.google.com) con
+   la cuenta de Gmail de la iglesia.
+2. **Agregar proyecto** → nombre (por ejemplo `iglesia-chat`) → podés
+   desactivar Google Analytics → **Crear proyecto**.
+3. Menú izquierdo: **Compilación → Realtime Database** → **Crear base de datos**.
+4. Ubicación: la que propone → arrancá en **modo bloqueado**.
+5. Pestaña **Reglas**: borrá lo que hay, pegá esto y tocá **Publicar**.
+   Cambiá `moderador@iglesia.com` por el correo real del moderador.
+
+```json
+{
+  "rules": {
+    "chat": {
+      "mensajes": {
+        ".read": true,
+        ".indexOn": ["ts"],
+        "$mensaje": {
+          ".write": "(!data.exists() && newData.child('texto').isString() && newData.child('texto').val().length <= 300 && newData.child('nombre').isString() && newData.child('nombre').val().length <= 24 && newData.child('ts').isNumber()) || (data.exists() && !newData.exists() && auth != null && auth.token.email === 'moderador@iglesia.com')",
+          ".validate": "!newData.exists() || newData.hasChildren(['nombre','texto','ts'])"
+        }
+      }
+    }
+  }
+}
+```
+
+   Estas reglas dejan leer a todos y escribir mensajes nuevos, pero nadie puede
+   editar ni borrar los que ya están, **salvo el correo del moderador**.
+
+6. Arriba de la tabla aparece la dirección de la base, algo así:
+   `https://iglesia-chat-default-rtdb.firebaseio.com`
+   (a veces termina en `.firebasedatabase.app`). Copiala.
+7. Pegala en `config.js`:
+
+```js
+chat: {
+  habilitado:  true,
+  titulo:      "Chat de la iglesia",
+  databaseURL: "https://iglesia-chat-default-rtdb.firebaseio.com",
+  ruta:        "chat/mensajes",
+  maxNombre:   20,
+  maxCaracteres: 280,
+  esperaEnvio: 4000,
+  textoVacio:  "Todavía no hay mensajes. ¡Escribí el primero!",
+  textoBloqueado: "Ese mensaje tiene palabras que no están permitidas.",
+
+  filtro: {
+    activo: true,
+    modo: "censurar",
+    palabras: ["puta", "pelotudo", "mierda"]
+  },
+
+  moderacion: {
+    apiKey: "",
+    email:  ""
+  }
+}
+```
+
+8. Publicá la web (o probá en `http://localhost:3000`). El botón del chat
+   aparece solo si `databaseURL` tiene una dirección.
+
+### Filtro de palabras ofensivas
+
+Se aplica **al enviar y también al mostrar**, así que si alguien escribe
+saltándose la web, igual se ve tachado. Entiende mayúsculas, tildes, letras
+repetidas (`puuuta`), y algunos reemplazos típicos (`put4`, `pel0tudo`).
+
+- `modo: "censurar"` (recomendado): la palabra se tacha con asteriscos y el
+  mensaje se envía igual. `Sos un pelotudo` → `Sos un ********`.
+- `modo: "bloquear"`: no deja enviar y muestra el aviso de `textoBloqueado`.
+
+La lista de `palabras` es tuya: agregá o quitá las que quieras. Si alguna
+palabra normal te queda tachada, sacala de la lista.
+
+### Moderación: borrar mensajes
+
+**a) Activar el ingreso con correo y contraseña**
+1. **Compilación → Authentication → Comenzar**.
+2. Pestaña **Sign-in method** → **Correo electrónico/Contraseña** → **Habilitar**.
+3. Pestaña **Usuarios** → **Agregar usuario** → correo y contraseña del
+   moderador. Esa contraseña no se guarda en la web.
+
+**b) Poner ese correo en las reglas** (el mismo del paso 5).
+Si hay dos moderadores: `auth.token.email === 'uno@iglesia.com' || auth.token.email === 'dos@iglesia.com'`.
+
+**c) Copiar la Web API Key**
+**Configuración del proyecto → General → Tus apps → Configuración del SDK →
+`apiKey`** (empieza con `AIza`). No es la misma clave de YouTube.
+
+**d) Completar en `config.js`**
+```js
+moderacion: {
+  apiKey: "AIza...la_clave_web",
+  email:  "moderador@iglesia.com"
+}
+```
+
+Con eso aparece un escudito arriba a la derecha del chat. Se ingresa correo y
+contraseña, y cada mensaje muestra un tachito para borrarlo (pide
+confirmación). Si `moderacion.apiKey` queda vacío, el escudito no aparece.
+
+### Limpieza automática de mensajes viejos
+
+El archivo `limpiar-chat.js` borra los mensajes con más de X días. Usa la API
+de Firebase, así que **necesita un usuario moderador** (el mismo del paso a).
+
+1. Copiá `.env.example` a `.env` y completá:
+
+```
+FIREBASE_DB_URL=https://iglesia-chat-default-rtdb.firebaseio.com
+FIREBASE_API_KEY=AIza...la_clave_web
+MODERADOR_EMAIL=moderador@iglesia.com
+MODERADOR_PASSWORD=la_contraseña_del_moderador
+DIAS_RETENCION=30
+```
+
+2. Probá primero en modo simulación (no borra nada):
+
+```bash
+node limpiar-chat.js --simular
+```
+
+3. Si la lista es la correcta, corré la limpieza de verdad:
+
+```bash
+node limpiar-chat.js
+```
+
+Opciones útiles:
+
+```bash
+node limpiar-chat.js --dias 15     # conserva solo 15 días en esta corrida
+node limpiar-chat.js --ayuda       # ayuda
+```
+
+**Para que se haga solo**, programalo una vez por semana:
+
+- **Windows:** Programador de tareas → Crear tarea básica → Semanal →
+  Acción: `node`, argumentos `limpiar-chat.js`, iniciar en la carpeta del proyecto.
+- **Linux/Mac (cron):** `0 3 * * 0 cd /ruta/al/proyecto && node limpiar-chat.js`
+  (todos los domingos a las 3 de la mañana).
+- **GitHub Actions:** un workflow semanal con `node limpiar-chat.js` y los
+  datos guardados en *Secrets*.
+
+> El `.env` tiene la contraseña del moderador: no lo subas a GitHub ni lo
+> mandes por WhatsApp. Ya está excluido en `.gitignore`.
+
+### Qué conviene saber
+
+- **Es gratis** dentro del plan Spark: 100 conexiones simultáneas y 1 GB.
+  Para una iglesia sobra.
+- El nombre se recuerda en el celular de cada persona.
+- Hay 4 segundos de espera entre mensaje y mensaje (`esperaEnvio`).
+- Para apagar el chat sin borrar nada: `habilitado: false`.
+- Avisá en la web que no se compartan datos personales en el chat.
+
+---
+
+## 9. App instalable (PWA)
 
 Para que el celular ofrezca "Instalar app":
 
@@ -240,7 +422,7 @@ Con eso los celulares descargan la versión nueva en lugar de la vieja guardada.
 
 ---
 
-## 9. Servidor opcional (saludos de audio)
+## 10. Servidor opcional (saludos de audio)
 
 Solo necesario si querés recibir saludos grabados y guardarlos en la nube.
 
@@ -264,7 +446,7 @@ que está excluido por `.gitignore`.
 
 ---
 
-## 10. Cómo publicarla
+## 11. Cómo publicarla
 
 | Servicio | Cómo |
 |---|---|
@@ -276,12 +458,14 @@ que está excluido por `.gitignore`.
 
 ---
 
-## 11. Antes de publicar: checklist
+## 12. Antes de publicar: checklist
 
 - [ ] Nombre, eslogan e iglesia cambiados en `config.js`.
 - [ ] Stream propio funcionando en `transmision.url`.
 - [ ] Programación y reuniones reales.
 - [ ] Dirección, mapa y enlace de Google Maps revisados.
+- [ ] Chat funcionando, reglas publicadas y filtro de palabras revisado.
+- [ ] Usuario moderador creado y borrado de mensaje probado.
 - [ ] Redes sociales y WhatsApp con tus números.
 - [ ] Fondos e ícono reemplazados.
 - [ ] `manifest.json` con nombre y colores correctos.
@@ -292,7 +476,7 @@ que está excluido por `.gitignore`.
 
 ---
 
-## 12. Problemas frecuentes
+## 13. Problemas frecuentes
 
 **No suena el audio.**
 Verificá que `transmision.url` sea un enlace directo al stream (termina en
@@ -325,13 +509,32 @@ El navegador solo comparte la ubicación en sitios con **HTTPS** (o en
 `localhost`) y pide permiso la primera vez. Si el usuario lo rechaza, se abre
 el mapa con la dirección de la iglesia como destino y sin punto de partida.
 
+**No aparece el botón del chat.**
+Falta pegar la dirección de Firebase en `chat.databaseURL`, o `chat.habilitado`
+está en `false`.
+
+**El chat dice «No se pudo cargar el chat».**
+La dirección está mal copiada o las reglas no se publicaron. Abrí esa dirección
+en el navegador: tiene que responder algo, no un error.
+
+**Se tachan palabras que no debería.**
+Sacá esa palabra de la lista `chat.filtro.palabras`.
+
+**El script dice «No se pudo iniciar sesión».**
+Revisá `MODERADOR_EMAIL` y `MODERADOR_PASSWORD` en `.env`, y que el usuario
+exista en Authentication.
+
+**El script dice «No se pudieron leer los mensajes».**
+Las reglas no tienen `.indexOn: ["ts"]` o el correo de las reglas no coincide
+con el usuario que inicia sesión.
+
 **El botón de Smart TV no funciona.**
 Requiere Chrome, la misma red Wi-Fi y un dispositivo compatible (Chromecast o
 TV con Google Cast).
 
 ---
 
-## 13. Crear una segunda radio desde esta plantilla
+## 14. Crear una segunda radio desde esta plantilla
 
 1. Copiá la carpeta completa y renombrala (ej. `radio-vida`).
 2. Cambiá `config.js` (identidad, colores, stream, redes, horarios).
