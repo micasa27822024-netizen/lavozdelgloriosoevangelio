@@ -193,9 +193,11 @@ Si no ponés la clave, la ventana muestra un aviso indicando dónde configurarla
 
 ## 7. Ubicación de la iglesia
 
-La ventana **Ubicación** muestra el mapa, la dirección y dos botones:
-**«Cómo llegar»** (abre Google Maps con la ruta hasta la iglesia) y
-**«Usar mi ubicación»** (calcula la ruta desde donde está la persona).
+La ventana **Ubicación** muestra el mapa, la dirección y tres botones:
+**«Cómo llegar»** (abre Google Maps con la ruta hasta la iglesia),
+**«Usar mi ubicación»** (calcula la ruta desde donde está la persona) y
+**«Consultar por las congregaciones de la común fe»** (abre WhatsApp con un
+mensaje ya escrito para pedir información).
 
 Todo se edita en el bloque `ubicacion`:
 
@@ -209,7 +211,13 @@ ubicacion: {
   linkMapa:        "https://maps.app.goo.gl/xxxxxxxx",  // enlace corto del lugar
   embedUrl:        "https://www.google.com/maps?q=...&output=embed",
   textoComoLlegar: "Cómo llegar",
-  textoMiUbicacion: "Usar mi ubicación"
+  textoMiUbicacion: "Usar mi ubicación",
+
+  // Botón de consulta por las congregaciones de la común fe
+  textoConsultarCongregaciones: "Consultar por las congregaciones de la común fe",
+  consultaWhatsapp: "5491139064858",  // número que recibe las consultas (sin + ni espacios)
+  consultaUrl:      "",               // opcional: si lo completás, abre ese enlace
+  mensajeConsultarCongregaciones: "Hola, quisiera consultar por las congregaciones de la común fe. ¿Me pueden dar información?"
 }
 ```
 
@@ -219,6 +227,9 @@ ubicacion: {
   Los espacios y las tildes se escriben codificados (`%20`, `%C3%BC`).
 - **`linkMapa`**: el enlace corto del lugar (Google Maps → Compartir → Copiar enlace).
 - Los botones de ruta no necesitan ninguna clave de API.
+- **«Consultar por las congregaciones de la común fe»** usa el número de
+  `consultaWhatsapp`; si preferís un formulario u otro enlace, completá
+  `consultaUrl` y el botón abrirá eso. Dejando ambos vacíos, el botón no aparece.
 - **«Usar mi ubicación»** solo funciona en sitios publicados con **HTTPS**.
 
 Si tu iglesia cambia de dirección, alcanza con corregir `direccion`,

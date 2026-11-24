@@ -185,6 +185,12 @@ window.CONFIG = {
      • embedUrl: mapa que se muestra dentro de la web (no necesita API Key).
      • direccion, localidad, provincia y codigoPostal: se muestran juntos y
        se usan para calcular "Cómo llegar".
+     • Botón extra "Consultar por las congregaciones de la común fe":
+         consultaWhatsapp → número con código de país, sin + ni espacios
+                            (ej: "5491139064858").
+         consultaUrl      → opcional; si lo completás, el botón abre ese
+                            enlace en lugar del chat de WhatsApp.
+         Si no ponés número ni enlace, el botón no se muestra.
      ========================================================================== */
   ubicacion: {
     titulo:         "Nuestra Ubicación",
@@ -195,7 +201,13 @@ window.CONFIG = {
     linkMapa:       "https://maps.app.goo.gl/MCT7WQuWEcYYdarv9",
     embedUrl:       "https://www.google.com/maps?q=Edison%201406%2C%20El%20Jag%C3%BCel%2C%20Esteban%20Echeverr%C3%ADa%2C%20Buenos%20Aires&z=16&output=embed",
     textoComoLlegar: "Cómo llegar",
-    textoMiUbicacion: "Usar mi ubicación"
+    textoMiUbicacion: "Usar mi ubicación",
+
+    // Botón de consulta por las congregaciones de la común fe
+    textoConsultarCongregaciones: "Consultar por las congregaciones de la común fe",
+    consultaWhatsapp: "5491139064858", // ← número que recibe las consultas
+    consultaUrl:      "",              // ← opcional: enlace propio (formulario, etc.)
+    mensajeConsultarCongregaciones: "Hola, quisiera consultar por las congregaciones de la común fe. ¿Me pueden dar información?"
   },
 
   /* ==========================================================================

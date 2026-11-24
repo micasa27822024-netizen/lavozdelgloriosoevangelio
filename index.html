@@ -704,6 +704,13 @@
       border: 1px solid rgba(255, 255, 255, 0.22);
       color: #ffffff;
     }
+    .btn-ubicacion.whatsapp {
+      background: linear-gradient(135deg, #25d366, #128c7e);
+      color: #06281b;
+      font-weight: 800;
+    }
+    .btn-ubicacion.ancho-completo { grid-column: 1 / -1; }
+    .btn-ubicacion[hidden] { display: none !important; }
 
     .ubicacion-nota {
       margin-top: 10px;
@@ -1142,6 +1149,9 @@
         <button class="btn-ubicacion secundario" id="btnMiUbicacion" type="button">
           <i class="fa-solid fa-location-crosshairs"></i> <span id="btnMiUbicacionTexto">Usar mi ubicación</span>
         </button>
+        <a class="btn-ubicacion whatsapp ancho-completo" id="btnConsultarCongregaciones" href="#" target="_blank" rel="noopener">
+          <i class="fa-brands fa-whatsapp"></i> <span id="btnConsultarCongregacionesTexto">Consultar por las congregaciones de la común fe</span>
+        </a>
       </div>
 
       <p class="ubicacion-nota" id="ubicacionEstado" role="status"></p>
@@ -1283,7 +1293,9 @@
         titulo: 'Nuestra Ubicación',
         direccion: '', localidad: '', provincia: '', codigoPostal: '',
         linkMapa: '', embedUrl: '',
-        textoComoLlegar: 'Cómo llegar', textoMiUbicacion: 'Usar mi ubicación'
+        textoComoLlegar: 'Cómo llegar', textoMiUbicacion: 'Usar mi ubicación',
+        textoConsultarCongregaciones: 'Consultar por las congregaciones de la común fe',
+        consultaWhatsapp: '', consultaUrl: '', mensajeConsultarCongregaciones: ''
       },
       redes: [],
       textos: {
@@ -1779,6 +1791,15 @@
       return url;
     }
 
+    function urlConsultarCongregaciones() {
+      const u = C.ubicacion;
+      if (u.consultaUrl) return u.consultaUrl;
+      const telefono = String(u.consultaWhatsapp || '').replace(/[^0-9]/g, '');
+      if (!telefono) return '';
+      const mensaje = u.mensajeConsultarCongregaciones || 'Hola, quisiera consultar por las congregaciones de la común fe. ¿Me pueden dar información?';
+      return 'https://wa.me/' + telefono + '?text=' + encodeURIComponent(mensaje);
+    }
+
     function cargarMapa() {
       const iframe = $('mapaIframe');
       if (!iframe || !C.ubicacion.embedUrl) return;
@@ -1808,6 +1829,23 @@
 
       $('btnComoLlegarTexto').textContent = u.textoComoLlegar || 'Cómo llegar';
       $('btnMiUbicacionTexto').textContent = u.textoMiUbicacion || 'Usar mi ubicación';
+
+      const btnConsultar = $('btnConsultarCongregaciones');
+      if (btnConsultar) {
+        const textoConsultar = $('btnConsultarCongregacionesTexto');
+        if (textoConsultar) {
+          textoConsultar.textContent = u.textoConsultarCongregaciones || 'Consultar por las congregaciones de la común fe';
+        }
+        const urlConsultar = urlConsultarCongregaciones();
+        if (urlConsultar) {
+          btnConsultar.href = urlConsultar;
+          btnConsultar.target = '_blank';
+          btnConsultar.rel = 'noopener';
+          btnConsultar.hidden = false;
+        } else {
+          btnConsultar.hidden = true;
+        }
+      }
     }
 
     function usarMiUbicacion() {
